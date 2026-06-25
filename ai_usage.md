@@ -19,6 +19,16 @@
 
 > *Tool call total = 141 main-agent + 113 subagent (F4: 77, F5: 36)*
 
+## Human Contributions
+
+| Area | What the human did |
+|---|---|
+| Product direction | Defined the PR-review agent as a product, including the core problem, target user, and desired review workflow. |
+| Scope and prioritization | Chose what to build in Phase 1 versus defer to Phase 2, including review automation, graph refresh, and policy injection. |
+| Task decomposition | Broke the work into implementable tasks and reviewed the task specification to keep execution focused. |
+| Architecture design | Thought through the overall architecture and how the system should work end to end. |
+| Usage tracking | Authored the custom `/ai-usage` skill used to log AI-related activity and session history. |
+
 ## Tool Call Totals
 
 | Tool | Times Called |
