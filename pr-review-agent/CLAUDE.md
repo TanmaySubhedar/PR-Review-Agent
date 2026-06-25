@@ -22,9 +22,9 @@ pytest tests/test_config.py -v
 pytest tests/test_db.py::test_finding_crud -v
 
 # Run the CLI (after install)
-pr-agent --help
-pr-agent setup
-pr-agent review owner/repo 42
+prv --help
+prv setup
+prv review owner/repo 42
 
 # Run as a module (without installing)
 python -m pr_review_agent --help
@@ -32,7 +32,7 @@ python -m pr_review_agent --help
 
 ## Architecture
 
-The package is a Typer CLI that drives an 8-phase sequential pipeline. There is no web server or webhook handler — everything is initiated from `pr-agent review`.
+The package is a Typer CLI that drives an 8-phase sequential pipeline. There is no web server or webhook handler — everything is initiated from `prv review`.
 
 ### Pipeline (`graph/`)
 
@@ -64,11 +64,11 @@ Builds a NetworkX `DiGraph` over all source files in the cloned repo. Node kinds
 
 ### Configuration (`config.py`)
 
-`settings` is a module-level singleton created at import time. Config priority: `~/.pr-agent/config.toml` → `PR_AGENT_*` environment variables. `save_settings(dict)` merges values into the TOML file. Tests that need a clean config should `patch("pr_review_agent.config._CONFIG_FILE", ...)`.
+`settings` is a module-level singleton created at import time. Config priority: `~/.prv/config.toml` → `PR_AGENT_*` environment variables. `save_settings(dict)` merges values into the TOML file. Tests that need a clean config should `patch("pr_review_agent.config._CONFIG_FILE", ...)`.
 
 ### Persistence (`db.py`)
 
-`engine` is a module-level SQLAlchemy engine pointing at `~/.pr-agent/runs.db`. Tests that need an isolated DB should `patch("pr_review_agent.db.engine", create_engine("sqlite:///:memory:"))`. The three SQLModel tables — `RunRecord`, `FindingRecord`, `PhaseLog` — have explicit `__tablename__` values to avoid SQLModel auto-naming surprises with foreign keys.
+`engine` is a module-level SQLAlchemy engine pointing at `~/.prv/runs.db`. Tests that need an isolated DB should `patch("pr_review_agent.db.engine", create_engine("sqlite:///:memory:"))`. The three SQLModel tables — `RunRecord`, `FindingRecord`, `PhaseLog` — have explicit `__tablename__` values to avoid SQLModel auto-naming surprises with foreign keys.
 
 `get_session()` returns a plain `Session` (not a context manager); callers are responsible for `.commit()` and `.close()` or use it as `with get_session() as s:`.
 

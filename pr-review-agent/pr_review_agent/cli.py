@@ -1,4 +1,4 @@
-"""Typer CLI — entry point for the `pr-agent` command."""
+"""Typer CLI — entry point for the `prv` command."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ from pr_review_agent.graph.state import PRReviewState
 from pr_review_agent.tools.treesitter import detect_language
 
 app = typer.Typer(
-    name="pr-agent",
+    name="prv",
     help="Repository-aware autonomous PR review CLI.",
     no_args_is_help=True,
 )
@@ -175,7 +175,7 @@ def setup(
     from pr_review_agent.config import save_settings
     from pr_review_agent.db import init_db
 
-    console.rule("[bold]pr-agent setup[/bold]")
+    console.rule("[bold]prv setup[/bold]")
 
     values: dict = {}
 
@@ -243,7 +243,7 @@ def health() -> None:
         if not good:
             ok = False
 
-    console.rule("[bold]pr-agent health[/bold]")
+    console.rule("[bold]prv health[/bold]")
 
     cfg_exists = Path(_CONFIG_FILE).exists()
     _row("Config file exists", cfg_exists, str(_CONFIG_FILE))
@@ -255,7 +255,7 @@ def health() -> None:
         _row("LLM key present", has_llm, "azure_openai_api_key or openai_api_key")
         _row("LLM model set", bool(s.azure_openai_model), s.azure_openai_model or "—")
     else:
-        _row("GitHub token set", False, "run `pr-agent setup` first")
+        _row("GitHub token set", False, "run `prv setup` first")
         _row("LLM key present", False)
         _row("LLM model set", False)
 
@@ -437,7 +437,7 @@ def review(
         except Exception as exc:
             console.print(f"[yellow]Warning: could not post GitHub review: {exc}[/yellow]")
     else:
-        console.print(f"Review saved locally. Run `pr-agent status {result.review_run_id[:8]}` to view.")
+        console.print(f"Review saved locally. Run `prv status {result.review_run_id[:8]}` to view.")
 
 
 # ---------------------------------------------------------------------------
@@ -527,7 +527,7 @@ def _list_stored_runs(limit: int) -> None:
         runs = session.exec(stmt).all()
 
     if not runs:
-        console.print("[yellow]No review runs found. Use `pr-agent list --repo owner/name` to see open PRs.[/yellow]")
+        console.print("[yellow]No review runs found. Use `prv list --repo owner/name` to see open PRs.[/yellow]")
         raise typer.Exit()
 
     table = Table(title="Recent Review Runs")

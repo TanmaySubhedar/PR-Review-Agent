@@ -21,7 +21,7 @@ dependencies = [
 ]
 
 [project.scripts]
-pr-agent = "pr_review_agent.cli:app"
+prv = "pr_review_agent.cli:app"
 
 [project.optional-dependencies]
 dev = [
