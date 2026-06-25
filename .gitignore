@@ -12,13 +12,7 @@ venv/
 *.db
 *.db-journal
 
-# Node / frontend
-frontend/node_modules/
-frontend/dist/
-frontend/.vite/
-frontend/*.tsbuildinfo
-frontend/vite.config.js
-frontend/vite.config.d.ts
+
 
 # Editors / OS
 .vscode/
@@ -27,4 +21,7 @@ frontend/vite.config.d.ts
 Thumbs.db
 
 # Scratch workspaces created by the blast-radius cloner
-backend/.workspaces/
+pr-agent/
+
+# Ignore task files
+tasks/
