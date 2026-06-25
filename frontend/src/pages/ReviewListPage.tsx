@@ -1,13 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { listReviews } from "../api/client";
+import { colors } from "../theme";
 import type { ReviewRun } from "../types";
-
-const RISK_COLOR: Record<string, string> = {
-  low: "#1a7f37",
-  medium: "#9a6700",
-  high: "#cf222e",
-};
 
 export function ReviewListPage() {
   const [reviews, setReviews] = useState<ReviewRun[]>([]);
@@ -59,7 +54,7 @@ export function ReviewListPage() {
               </td>
               <td style={{ padding: 8 }}>{run.repo_full_name}</td>
               <td style={{ padding: 8 }}>{run.status}</td>
-              <td style={{ padding: 8, color: run.risk_level ? RISK_COLOR[run.risk_level] : undefined }}>
+              <td style={{ padding: 8, color: run.risk_level ? colors.risk[run.risk_level] : undefined }}>
                 {run.risk_level ?? "-"}
               </td>
               <td style={{ padding: 8 }}>{new Date(run.updated_at).toLocaleString()}</td>

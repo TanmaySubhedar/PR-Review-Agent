@@ -1,11 +1,5 @@
+import { colors } from "../theme";
 import type { PhaseLog } from "../types";
-
-const STATUS_COLOR: Record<string, string> = {
-  pending: "#d0d7de",
-  running: "#0969da",
-  done: "#1a7f37",
-  failed: "#cf222e",
-};
 
 export function PipelinePhaseTimeline({ phases }: { phases: PhaseLog[] }) {
   return (
@@ -15,8 +9,8 @@ export function PipelinePhaseTimeline({ phases }: { phases: PhaseLog[] }) {
           key={phase.id}
           title={phase.detail ?? phase.phase}
           style={{
-            border: `1px solid ${STATUS_COLOR[phase.status]}`,
-            color: STATUS_COLOR[phase.status],
+            border: `1px solid ${colors.status[phase.status]}`,
+            color: colors.status[phase.status],
             borderRadius: 999,
             padding: "4px 10px",
             fontSize: 12,
