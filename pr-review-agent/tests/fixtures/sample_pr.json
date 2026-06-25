@@ -1,0 +1,20 @@
+{
+  "repo_full_name": "octocat/hello-world",
+  "pr_number": 42,
+  "pr_url": "https://github.com/octocat/hello-world/pull/42",
+  "title": "Replace MD5 password hashing with SHA-256 + salt",
+  "description": "Improves password security by using SHA-256 with a random salt instead of plain MD5.",
+  "base_sha": "abc123def456abc123def456abc123def456abc123",
+  "head_sha": "fed321cba654fed321cba654fed321cba654fed321",
+  "base_ref": "main",
+  "head_ref": "feature/better-hashing",
+  "clone_url": "https://github.com/octocat/hello-world.git",
+  "changed_files": ["auth/utils.py"],
+  "commits": [
+    {
+      "sha": "fed321cba654",
+      "message": "Replace MD5 with SHA-256 + salt for password hashing",
+      "author": "octocat"
+    }
+  ]
+}
