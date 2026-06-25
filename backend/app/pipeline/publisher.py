@@ -45,9 +45,12 @@ def build_summary_body(
         lines.append(change_summary)
         lines.append("")
 
+    _MAX_RISK_AREAS = 10
     if repository_context.risk_areas:
+        shown = repository_context.risk_areas[:_MAX_RISK_AREAS]
+        remainder = len(repository_context.risk_areas) - len(shown)
         lines.append("**Risk areas:**")
-        lines.extend(f"- {r}" for r in repository_context.risk_areas)
+        lines.extend(f"- {r}" for r in shown)
         lines.append("")
 
     downgraded = [sf for sf in scored_findings if sf.downgrade_to_summary]

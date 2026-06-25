@@ -1,3 +1,4 @@
+import json as _json
 import logging
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Request
@@ -32,7 +33,13 @@ async def github_webhook(
     if x_github_event != "pull_request":
         return {"status": "ignored", "reason": f"event={x_github_event}"}
 
-    payload = await request.json()
+    outer = await request.json()
+    # smee.io wraps the GitHub payload as a JSON-encoded string under "payload"
+    if isinstance(outer, dict) and "payload" in outer and isinstance(outer["payload"], str):
+        payload = _json.loads(outer["payload"])
+    else:
+        payload = outer
+
     if not is_relevant_pull_request_event(payload):
         return {"status": "ignored", "reason": f"action={payload.get('action')}"}
 

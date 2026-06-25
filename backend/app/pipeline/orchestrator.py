@@ -76,7 +76,8 @@ async def run_review_pipeline(
     on_phase("context_retrieval", "done")
 
     on_phase("synthesis", "running")
-    repository_context = synthesize_repository_context(blast_radius, reader_outputs)
+    added_symbols = {cs.symbol_name for cs in diff_analysis.changed_symbols if cs.change_type == "added"}
+    repository_context = synthesize_repository_context(blast_radius, reader_outputs, added_symbols)
     on_phase("synthesis", "done")
 
     on_phase("review", "running")
