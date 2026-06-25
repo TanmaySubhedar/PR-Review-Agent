@@ -1,0 +1,29 @@
+# Python
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+backend/venv/
+backend/.venv/
+backend/pr_analyzer_backend.egg-info/
+backend/pr_analyzer.db
+backend/.pytest_cache/
+backend/.mypy_cache/
+
+# Node / Frontend
+frontend/node_modules/
+frontend/dist/
+
+# Secrets — never bake .env into the image
+.env
+
+# Git & editor noise
+.git/
+.gitignore
+**/.DS_Store
+
+# Non-runtime assets
+docs/
+evals/
+ai/
+data/
