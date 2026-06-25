@@ -16,5 +16,7 @@ class ReviewRun(SQLModel, table=True):
     status: str = Field(default="received")  # received|analyzing|reviewing|publishing|done|failed
     risk_level: Optional[str] = None
     error: Optional[str] = None
+    change_summary: Optional[str] = None
+    suggested_pr_description: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

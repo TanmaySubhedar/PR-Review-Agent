@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { getFindings, getPhases, getReview } from "../api/client";
 import { FindingCard } from "../components/FindingCard";
 import { PipelinePhaseTimeline } from "../components/PipelinePhaseTimeline";
+import { colors } from "../theme";
 import type { Finding, PhaseLog, ReviewRun } from "../types";
 
 export function ReviewDetailPage() {
@@ -57,6 +58,40 @@ export function ReviewDetailPage() {
         · status: {run.status} · risk: {run.risk_level ?? "-"}
       </p>
       {run.error && <p style={{ color: "#cf222e" }}>Error: {run.error}</p>}
+
+      {run.change_summary && (
+        <div
+          style={{
+            background: colors.soft,
+            border: `1px solid ${colors.line}`,
+            borderRadius: 6,
+            padding: 12,
+            marginBottom: 16,
+          }}
+        >
+          <strong>Summary</strong>
+          <p style={{ margin: "6px 0 0" }}>{run.change_summary}</p>
+        </div>
+      )}
+
+      {run.suggested_pr_description && (
+        <details style={{ marginBottom: 16 }}>
+          <summary style={{ cursor: "pointer", fontWeight: 600 }}>Suggested PR description</summary>
+          <pre
+            style={{
+              background: colors.soft,
+              border: `1px solid ${colors.line}`,
+              borderRadius: 6,
+              padding: 12,
+              marginTop: 8,
+              whiteSpace: "pre-wrap",
+              fontSize: 13,
+            }}
+          >
+            {run.suggested_pr_description}
+          </pre>
+        </details>
+      )}
 
       <PipelinePhaseTimeline phases={phases} />
 

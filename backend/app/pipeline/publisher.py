@@ -33,10 +33,17 @@ def build_inline_comments(scored_findings: list[ScoredFinding]) -> list[dict]:
 
 
 def build_summary_body(
-    diff_analysis: DiffAnalysis, repository_context: RepositoryContext, scored_findings: list[ScoredFinding]
+    diff_analysis: DiffAnalysis,
+    repository_context: RepositoryContext,
+    scored_findings: list[ScoredFinding],
+    change_summary: str = "",
 ) -> str:
     overall_severity = compute_overall_severity(scored_findings)
     lines = [f"## Automated PR Review (risk: {diff_analysis.risk_level}, overall severity: {overall_severity})", ""]
+
+    if change_summary:
+        lines.append(change_summary)
+        lines.append("")
 
     if repository_context.risk_areas:
         lines.append("**Risk areas:**")
@@ -66,8 +73,9 @@ def publish_review(
     diff_analysis: DiffAnalysis,
     repository_context: RepositoryContext,
     scored_findings: list[ScoredFinding],
+    change_summary: str = "",
 ) -> dict:
-    summary_body = build_summary_body(diff_analysis, repository_context, scored_findings)
+    summary_body = build_summary_body(diff_analysis, repository_context, scored_findings, change_summary)
     inline_comments = build_inline_comments(scored_findings)
 
     github_client.create_review(pr_event.repo_full_name, pr_event.pr_number, summary_body, inline_comments)

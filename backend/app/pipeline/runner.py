@@ -120,6 +120,8 @@ async def execute_review_run(review_run_id: str, pr_event: PREvent) -> None:
                 )
 
             run.risk_level = result.diff_analysis.risk_level
+            run.change_summary = result.change_summary
+            run.suggested_pr_description = result.suggested_pr_description
             run.status = "done"
             session.add(run)
 

@@ -31,6 +31,8 @@ class PipelineResult:
     findings: list[ReviewFinding]
     scored_findings: list[ScoredFinding]
     publish_result: dict
+    change_summary: str
+    suggested_pr_description: str
 
 
 def _noop_callback(phase: str, status: str) -> None:
@@ -78,9 +80,10 @@ async def run_review_pipeline(
     on_phase("synthesis", "done")
 
     on_phase("review", "running")
-    findings = await generate_findings(
+    review_response = await generate_findings(
         pr_event, file_diffs, diff_analysis, repository_context, previous_findings=previous_findings
     )
+    findings = review_response.findings
     on_phase("review", "done")
 
     on_phase("critic", "running")
@@ -88,7 +91,9 @@ async def run_review_pipeline(
     on_phase("critic", "done")
 
     on_phase("publish", "running")
-    publish_result = publish_review(github_client, pr_event, diff_analysis, repository_context, scored_findings)
+    publish_result = publish_review(
+        github_client, pr_event, diff_analysis, repository_context, scored_findings, review_response.change_summary
+    )
     on_phase("publish", "done")
 
     return PipelineResult(
@@ -99,4 +104,6 @@ async def run_review_pipeline(
         findings=findings,
         scored_findings=scored_findings,
         publish_result=publish_result,
+        change_summary=review_response.change_summary,
+        suggested_pr_description=review_response.suggested_pr_description,
     )

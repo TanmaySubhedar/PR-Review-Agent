@@ -22,12 +22,24 @@ _SYSTEM_PROMPT = (
     "(use the repository context's affected_components/services to judge this)\n"
     "- testing: missing tests or incomplete coverage for affected paths "
     "(use affected_tests and risk_areas to judge this)\n"
-    "- maintainability: readability, duplication, complexity\n\n"
+    "- maintainability: readability, duplication, complexity\n"
+    "- security: injection (SQL/command/template), hardcoded secrets or credentials, "
+    "missing authn/authz checks on sensitive paths, unsafe deserialization, "
+    "SSRF/path traversal from user-controlled input\n"
+    "- performance: N+1 queries or repeated I/O in a loop, unbounded result sets, "
+    "blocking/sync calls inside async code paths, missing pagination/batching on "
+    "newly introduced hot paths\n"
+    "- logging: missing log statements on error/failure paths in changed code, "
+    "secrets or PII written to logs, log levels that hide failures (e.g. errors "
+    "logged at debug) in newly added exception handlers\n\n"
     "Every finding MUST cite an exact file and, where the issue is in changed "
     "code, an exact line number from the diff. The `evidence` field must quote "
     "or precisely describe the specific code backing the finding - never give "
-    "a vague or generic finding. If you have no high-confidence finding for a "
-    "dimension, omit it rather than inventing one. Return only actionable "
+    "a vague or generic finding. The same evidence-trace requirement applies to "
+    "security and performance findings specifically: name the exact "
+    "user-controlled input or hot-path call, not just the word 'injection' or "
+    "'slow' near sensitive-looking code. If you have no high-confidence finding "
+    "for a dimension, omit it rather than inventing one. Return only actionable "
     "findings a developer could fix immediately.\n\n"
     "Concurrency and shared-state correctness findings need a concrete trace, "
     "not a pattern match: before raising a finding about shared/concurrent "
@@ -51,7 +63,15 @@ _SYSTEM_PROMPT = (
     f"explanation only hedges with one of ({_HEDGE_WORDS_LIST}) or otherwise "
     "only describes a hypothetical risk category instead of a concrete "
     "trace, cap the severity at `minor` - a backstop will also catch this "
-    "deterministically, but do not rely on it."
+    "deterministically, but do not rely on it.\n\n"
+    "In addition to findings, produce two more fields:\n"
+    "- `change_summary`: 2-4 factual sentences describing what the diff actually "
+    "does, grounded only in the diff itself - not what the PR title/description "
+    "claims if it disagrees with the code.\n"
+    "- `suggested_pr_description`: a ready-to-paste markdown PR description with "
+    "a 'What changed' section and a 'Why' section. Base 'Why' on the PR's own "
+    "title/description if provided; do not invent motivation the diff and PR "
+    "metadata don't support."
 )
 
 _RE_REVIEW_INSTRUCTIONS = (
@@ -99,7 +119,7 @@ async def generate_findings(
     diff_analysis: DiffAnalysis,
     repository_context: RepositoryContext,
     previous_findings: list[ReviewFinding] | None = None,
-):
+) -> ReviewFindingsResponse:
     user_prompt = (
         f"PR title: {pr_event.title}\n"
         f"PR description: {pr_event.description or '(none)'}\n\n"
@@ -114,5 +134,4 @@ async def generate_findings(
         system_prompt += _RE_REVIEW_INSTRUCTIONS
         user_prompt += f"\n\nPrevious review's findings on this PR:\n{_format_previous_findings(previous_findings)}"
 
-    response = await complete_structured(ReviewFindingsResponse, system_prompt, user_prompt)
-    return response.findings
+    return await complete_structured(ReviewFindingsResponse, system_prompt, user_prompt)

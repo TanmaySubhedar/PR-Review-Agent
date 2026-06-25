@@ -38,7 +38,9 @@ async def test_generate_findings_passes_through_mocked_llm_output(monkeypatch):
                     evidence="if is_expired(payload): return None",
                     severity="major",
                 )
-            ]
+            ],
+            change_summary="Adds an expiry check before returning the decoded token payload.",
+            suggested_pr_description="## What changed\nAdds an expiry check.\n\n## Why\nPrevents expired tokens from being accepted.",
         )
 
     monkeypatch.setattr(review_agent, "complete_structured", fake_complete_structured)
@@ -72,16 +74,28 @@ async def test_generate_findings_passes_through_mocked_llm_output(monkeypatch):
         risk_areas=["validate_token is called by 2 component(s)"],
     )
 
-    findings = await review_agent.generate_findings(_pr_event(), file_diffs, diff_analysis, repository_context)
+    response = await review_agent.generate_findings(_pr_event(), file_diffs, diff_analysis, repository_context)
 
-    assert len(findings) == 1
-    assert findings[0].file == "auth/utils.py"
+    assert len(response.findings) == 1
+    assert response.findings[0].file == "auth/utils.py"
+    assert response.change_summary
+    assert response.suggested_pr_description
     assert "auth/utils.py" in captured["user_prompt"]
     assert "AuthMiddleware" in captured["user_prompt"]
     assert "medium" in captured["user_prompt"]
 
     # without previous findings, the re-review instructions must not be added
     assert "reviewed before" not in captured["system_prompt"]
+
+
+def test_system_prompt_covers_all_seven_checklist_dimensions():
+    for dimension in ("correctness", "architecture", "testing", "maintainability", "security", "performance", "logging"):
+        assert dimension in review_agent._SYSTEM_PROMPT
+
+
+def test_system_prompt_requires_change_summary_and_pr_description():
+    assert "change_summary" in review_agent._SYSTEM_PROMPT
+    assert "suggested_pr_description" in review_agent._SYSTEM_PROMPT
 
 
 def test_hedge_word_list_in_prompt_matches_critic_agents_single_source_of_truth():
@@ -99,7 +113,7 @@ async def test_generate_findings_includes_previous_findings_and_re_review_instru
     async def fake_complete_structured(schema, system_prompt, user_prompt, **kwargs):
         captured["system_prompt"] = system_prompt
         captured["user_prompt"] = user_prompt
-        return ReviewFindingsResponse(findings=[])
+        return ReviewFindingsResponse(findings=[], change_summary="x", suggested_pr_description="y")
 
     monkeypatch.setattr(review_agent, "complete_structured", fake_complete_structured)
 
