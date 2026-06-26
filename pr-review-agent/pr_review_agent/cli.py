@@ -21,7 +21,7 @@ app = typer.Typer(
     help="Repository-aware autonomous PR review CLI.",
     no_args_is_help=True,
 )
-console = Console()
+console = Console(width=200)
 
 _SEV_COLORS = {"blocking": "red bold", "major": "red", "minor": "yellow", "info": "dim"}
 
@@ -38,7 +38,7 @@ def _phase_summary(phase: str, state: PRReviewState) -> str | None:
     if phase == "ingest":
         fds = state.get("file_diffs", [])
         meta = state.get("pr_metadata")
-        title = f'"{meta.title[:60]}"' if meta else "?"
+        title = f'"{meta.title}"' if meta else "?"
         sha = meta.head_sha[:8] if meta else "?"
         return f"[dim]{len(fds)} file(s) · {title} · sha {sha}[/dim]"
 
@@ -75,9 +75,8 @@ def _phase_summary(phase: str, state: PRReviewState) -> str | None:
         cf = state.get("context_files", [])
         if not cf:
             return "[red]0 context files — reviewer will have no file context[/red]"
-        names = "  ".join(f.file for f in cf[:6])
-        more = f"  +{len(cf) - 6} more" if len(cf) > 6 else ""
-        return f"[dim]{len(cf)} file(s): {names}{more}[/dim]"
+        names = "  ".join(f.file for f in cf)
+        return f"[dim]{len(cf)} file(s): {names}[/dim]"
 
     if phase == "readers":
         summaries = state.get("file_summaries", [])
@@ -118,16 +117,10 @@ def _strip_markup(s: str) -> str:
 
 
 def _render_findings_table(con: Console, findings_list: list) -> None:
-    """Render a findings table. Accepts list[ValidatedFinding] or list[FindingRecord]."""
+    """Render findings in GitHub comment style. Accepts list[ValidatedFinding] or list[FindingRecord]."""
     from pr_review_agent.models.domain import ValidatedFinding
 
-    table = Table(title=f"Findings ({len(findings_list)})")
-    table.add_column("Sev", justify="center")
-    table.add_column("Dimension")
-    table.add_column("File")
-    table.add_column("Line", justify="right")
-    table.add_column("Finding", max_width=70)
-    table.add_column("Conf", justify="right")
+    con.print(f"\n[bold]Findings ({len(findings_list)})[/bold]")
 
     for item in findings_list:
         if isinstance(item, ValidatedFinding):
@@ -135,28 +128,28 @@ def _render_findings_table(con: Console, findings_list: list) -> None:
             severity = f.severity
             dimension = f.dimension
             file_ = f.file
-            line = str(f.line) if f.line else "—"
-            finding_text = f.finding[:70]
+            line = str(f.line) if f.line else None
+            finding_text = f.finding
+            evidence_text = f.evidence
             conf = f"{item.verdict.confidence:.2f}"
         else:
-            # FindingRecord
             severity = item.severity
             dimension = item.dimension
             file_ = item.file
-            line = str(item.line) if item.line else "—"
-            finding_text = item.finding[:70]
+            line = str(item.line) if item.line else None
+            finding_text = item.finding
+            evidence_text = item.evidence
             conf = f"{item.confidence:.2f}"
 
-        table.add_row(
-            _sev(severity),
-            dimension,
-            file_,
-            line,
-            finding_text,
-            conf,
-        )
+        sev_color = {"blocking": "red bold", "major": "red", "minor": "yellow", "info": "dim"}.get(severity, "white")
 
-    con.print(table)
+        con.print()
+        loc = f"{file_}" + (f":{line}" if line else "")
+        con.print(f"[dim]{loc}[/dim]  [dim]·[/dim]  [dim]{dimension}  ·  conf {conf}[/dim]")
+        con.print(f"[{sev_color}][{severity.upper()}][/{sev_color}] {finding_text}")
+        con.print()
+        con.print(f"[dim]Evidence:[/dim] {evidence_text}")
+        con.print("[dim]" + "─" * 80 + "[/dim]")
 
 
 # ---------------------------------------------------------------------------
@@ -282,6 +275,7 @@ def review(
     repo: str = typer.Argument(..., help="Repository in owner/name format, e.g. octocat/Hello-World"),
     pr_number: int = typer.Argument(..., help="Pull request number"),
     no_post: bool = typer.Option(False, "--no-post", help="Skip posting the review to GitHub"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Auto-confirm posting the review to GitHub"),
 ) -> None:
     """Run a full review pipeline on a PR and persist results."""
     from pr_review_agent.db import get_session, init_db
@@ -387,8 +381,11 @@ def review(
     console.print(f"Run ID   : {result.review_run_id}")
     console.print(f"Risk     : {risk_level}")
 
-    # Publish gate — always prompt (never auto-post)
-    answer = typer.prompt("Post this review to GitHub? (y/N)", default="N")
+    # Publish gate
+    if yes or no_post:
+        answer = "y" if yes else "N"
+    else:
+        answer = typer.prompt("Post this review to GitHub? (y/N)", default="N")
     if answer.strip().lower() == "y":
         try:
             gh = GitHubClient()
@@ -414,13 +411,23 @@ def review(
             body = f"## PR Review — risk: **{risk_color} {risk_level}**\n\n"
             if risk_factors:
                 body += "**Risk factors:**\n" + "\n".join(f"- {r}" for r in risk_factors) + "\n\n"
-            body_summary_parts = "\n\n".join(
-                f"**[{vf.finding.severity.upper()} / {vf.finding.dimension}]** "
-                f"`{vf.finding.file}`{f':{vf.finding.line}' if vf.finding.line else ''}\n{vf.finding.finding}"
-                for vf in summary_only
+
+            def _finding_block(vf, label: str) -> str:
+                f = vf.finding
+                loc = f"`{f.file}`" + (f":{f.line}" if f.line else "")
+                return (
+                    f"**[{f.severity.upper()} / {f.dimension}]** {loc}  {label}\n\n"
+                    f"{f.finding}\n\n"
+                    f"> **Evidence:** {f.evidence}"
+                )
+
+            all_blocks = (
+                [_finding_block(vf, "") for vf in publishable]
+                + [_finding_block(vf, "*(summary only)*") for vf in summary_only]
+                + [_finding_block(vf, "*(filtered — below confidence threshold)*") for vf in filtered]
             )
-            if body_summary_parts:
-                body += "**Summary findings:**\n\n" + body_summary_parts
+            if all_blocks:
+                body += "### Findings\n\n" + "\n\n---\n\n".join(all_blocks)
 
             try:
                 gh.create_review(repo, pr_number, body, inline)
@@ -589,28 +596,20 @@ def status(
         console.print("\n[yellow]No findings stored.[/yellow]")
         return
 
-    console.print()
-    table = Table(title=f"Findings ({len(findings)})")
-    table.add_column("Sev", justify="center")
-    table.add_column("Dim")
-    table.add_column("File")
-    table.add_column("Line", justify="right")
-    table.add_column("Finding", max_width=60)
-    table.add_column("Conf", justify="right")
-    table.add_column("Pub", justify="center")
+    console.print(f"\n[bold]Findings ({len(findings)})[/bold]")
 
     for f in findings:
-        table.add_row(
-            _sev(f.severity),
-            f.dimension,
-            f.file,
-            str(f.line) if f.line else "—",
-            f.finding[:60],
-            f"{f.confidence:.2f}",
-            "✓" if f.published else "✗",
-        )
+        sev_color = {"blocking": "red bold", "major": "red", "minor": "yellow", "info": "dim"}.get(f.severity, "white")
+        pub_label = "[green]published[/green]" if f.published else ("[dim]local only[/dim]" if not f.discarded else "[red]filtered[/red]")
+        line = str(f.line) if f.line else None
+        loc = f.file + (f":{line}" if line else "")
 
-    console.print(table)
+        console.print()
+        console.print(f"[dim]{loc}[/dim]  [dim]·[/dim]  [dim]{f.dimension}  ·  conf {f.confidence:.2f}  ·[/dim]  {pub_label}")
+        console.print(f"[{sev_color}][{f.severity.upper()}][/{sev_color}] {f.finding}")
+        console.print()
+        console.print(f"[dim]Evidence:[/dim] {f.evidence}")
+        console.print("[dim]" + "─" * 80 + "[/dim]")
 
 
 # ---------------------------------------------------------------------------
@@ -676,7 +675,7 @@ def logs(
     table.add_column("Status", justify="center")
     table.add_column("Started At")
     table.add_column("Finished At")
-    table.add_column("Detail", max_width=60)
+    table.add_column("Detail")
 
     for log in phase_logs:
         status_color = {"done": "green", "failed": "red", "running": "cyan", "pending": "dim"}.get(log.status, "")
