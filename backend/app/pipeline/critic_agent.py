@@ -1,3 +1,4 @@
+import logging
 import re
 
 from app.config import settings
@@ -11,18 +12,33 @@ from app.schemas.repository_context import RepositoryContext
 from app.schemas.review_finding import ReviewFinding
 from app.schemas.scored_finding import CriticScore, ScoredFinding
 
+logger = logging.getLogger(__name__)
+
 _SYSTEM_PROMPT = load_prompt("critic_agent_system.md")
 
 HEDGE_WORDS = ("may", "might", "could", "possibly", "potentially")
 _HEDGE_LANGUAGE_RE = re.compile(r"\b(" + "|".join(HEDGE_WORDS) + r")\b", re.IGNORECASE)
 
+# Findings with confidence in [_BORDERLINE_MIN, threshold) get one refinement
+# attempt; findings below _BORDERLINE_MIN are too weak to bother refining.
+_BORDERLINE_MIN = 0.4
+_MAX_REFINEMENTS = 3
+
+_REFINEMENT_SYSTEM = (
+    "You are a code review refiner. A finding narrowly missed the quality bar because its "
+    "evidence lacked specificity. Produce a tighter version with more concrete evidence.\n"
+    "Rules:\n"
+    "- Do not invent new issues — only strengthen the evidence for the existing finding\n"
+    "- Quote the exact line(s) from the diff that demonstrate the problem\n"
+    "- If you cannot cite concrete evidence, reproduce the finding unchanged\n"
+    "- Keep the same file and dimension; downgrade severity only if the evidence demands it"
+)
+
 
 def _cap_severity_if_hedged(finding: ReviewFinding) -> ReviewFinding:
-    """Deterministic backstop for the review agent's own severity-discipline
-    instruction: a major/blocking finding whose description is hedged
-    ('may', 'could', 'might lead to') is describing a risk category, not a
-    proven failure, and gets capped to minor rather than discarded outright -
-    the underlying observation can still be useful, just not at that severity."""
+    """Deterministic backstop: a major/blocking finding whose description is
+    hedged ('may cause', 'could lead to') is a risk hypothesis, not a proven
+    failure — cap it to minor rather than discard it outright."""
     if finding.severity in ("major", "blocking") and _HEDGE_LANGUAGE_RE.search(finding.finding):
         return finding.model_copy(update={"severity": "minor"})
     return finding
@@ -31,16 +47,12 @@ def _cap_severity_if_hedged(finding: ReviewFinding) -> ReviewFinding:
 def _heuristic_evidence_check(
     finding: ReviewFinding, diff_analysis: DiffAnalysis, context_package: ContextPackage
 ):
-    """Deterministic, non-LLM gate: does this finding cite a file/line and
-    evidence text that actually exist? This is the single highest-leverage
-    check (it directly prevents posting a comment on a line that doesn't
-    exist) so it runs in code rather than being asked of the critic LLM,
-    which would add an unreliable extra hop to the one failure mode that
-    must not slip through.
+    """Code-level gate: does the finding cite a file/line that actually exists
+    in the diff? Runs before the LLM critic so we never ask an LLM to judge
+    a finding that references a non-existent location.
 
-    Returns (evidence_grounded, diff_position-or-None). `diff_position` is
-    None either when ungrounded, or when grounded but not anchorable inline
-    (caller downgrades to a summary comment in that case)."""
+    Returns (evidence_grounded, diff_position-or-None). diff_position is None
+    when grounded but not anchorable inline (caller downgrades to summary)."""
     if not finding.evidence.strip():
         return False, None
 
@@ -95,6 +107,7 @@ async def score_finding(
         respects_repo_context=judgment.respects_repo_context,
         actionable=judgment.actionable,
         confidence=judgment.confidence,
+        refinement_suggestion=judgment.refinement_suggestion,
     )
 
     publish = (
@@ -114,12 +127,76 @@ async def score_finding(
     )
 
 
+def _refinement_user_prompt(finding: ReviewFinding, suggestion: str) -> str:
+    return (
+        f"Original finding:\n"
+        f"file={finding.file} line={finding.line}\n"
+        f"dimension={finding.dimension} severity={finding.severity}\n"
+        f"finding={finding.finding}\n"
+        f"evidence={finding.evidence}\n\n"
+        f"Critic feedback: {suggestion}\n\n"
+        f"Produce a refined version with stronger, more concrete evidence."
+    )
+
+
+async def _try_refine(
+    scored: ScoredFinding,
+    diff_analysis: DiffAnalysis,
+    context_package: ContextPackage,
+    repository_context: RepositoryContext,
+) -> ScoredFinding:
+    """Ask the LLM to produce a more evidence-grounded version of a borderline
+    finding, then re-score it. Returns the original scored finding unchanged if
+    refinement fails or makes things worse."""
+    suggestion = (
+        scored.critic.refinement_suggestion
+        or "Provide a more specific evidence quote and confirm the exact line number."
+    )
+    try:
+        refined = await complete_structured(
+            ReviewFinding, _REFINEMENT_SYSTEM, _refinement_user_prompt(scored.finding, suggestion)
+        )
+        new_scored = await score_finding(refined, diff_analysis, context_package, repository_context)
+        outcome = "published" if (new_scored.publish or new_scored.downgrade_to_summary) else "filtered"
+        logger.info(
+            "critic refinement: conf %.2f → %.2f (%s) — %s",
+            scored.critic.confidence, new_scored.critic.confidence,
+            outcome, scored.finding.finding[:80],
+        )
+        return new_scored
+    except Exception as exc:
+        logger.warning("critic refinement failed, keeping original: %s", exc)
+        return scored
+
+
 async def score_findings(
     findings: list[ReviewFinding],
     diff_analysis: DiffAnalysis,
     context_package: ContextPackage,
     repository_context: RepositoryContext,
 ) -> list[ScoredFinding]:
-    return [
+    scored = [
         await score_finding(f, diff_analysis, context_package, repository_context) for f in findings
     ]
+
+    threshold = settings.critic_confidence_threshold
+    refinement_count = 0
+
+    for i, sf in enumerate(scored):
+        if refinement_count >= _MAX_REFINEMENTS:
+            break
+        v = sf.critic
+        # Only refine findings that: passed heuristic gates, are clearly
+        # actionable and context-respecting, but just missed the confidence bar.
+        if (
+            not sf.publish
+            and not sf.downgrade_to_summary
+            and v.evidence_grounded
+            and v.actionable
+            and v.respects_repo_context
+            and _BORDERLINE_MIN <= v.confidence < threshold
+        ):
+            scored[i] = await _try_refine(sf, diff_analysis, context_package, repository_context)
+            refinement_count += 1
+
+    return scored

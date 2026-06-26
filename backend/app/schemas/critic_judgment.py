@@ -12,3 +12,4 @@ class CriticJudgment(BaseModel):
     actionable: bool
     confidence: float
     rationale: str
+    refinement_suggestion: str | None = None
