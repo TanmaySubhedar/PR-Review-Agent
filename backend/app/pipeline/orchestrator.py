@@ -21,6 +21,37 @@ from app.schemas.scored_finding import ScoredFinding
 
 PhaseCallback = Callable[[str, str], None]  # (phase_name, status) -> None
 
+_SEVERITY_RANK = {"info": 0, "minor": 1, "major": 2, "blocking": 3}
+
+
+def _recalibrate_risk(blast_risk: str, scored_findings: list[ScoredFinding]) -> str:
+    """Blend blast-radius risk with actual finding severity.
+
+    Blast radius alone over-fires on PRs that touch high-fan-in components
+    but only make additive/cosmetic changes. Once the critic has scored
+    findings we have ground-truth evidence — use it to cap the label.
+
+    Rules (top-to-bottom, first match wins):
+      - blocking finding           → always high
+      - major finding              → high if blast=high, else medium
+      - minor/info + blast=high    → medium  (downgrade)
+      - minor/info + blast=medium  → low
+      - no surviving findings      → low
+    """
+    live = [sf for sf in scored_findings if sf.publish or sf.downgrade_to_summary]
+    if not live:
+        return "low"
+    top = max(_SEVERITY_RANK[sf.finding.severity] for sf in live)
+    if top >= _SEVERITY_RANK["blocking"]:
+        return "high"
+    if top >= _SEVERITY_RANK["major"]:
+        return blast_risk if blast_risk == "high" else "medium"
+    if blast_risk == "high":
+        return "medium"
+    if blast_risk == "medium":
+        return "low"
+    return "low"
+
 
 @dataclass
 class PipelineResult:
@@ -89,6 +120,7 @@ async def run_review_pipeline(
 
     on_phase("critic", "running")
     scored_findings = await score_findings(findings, diff_analysis, context_package, repository_context)
+    diff_analysis.risk_level = _recalibrate_risk(diff_analysis.risk_level, scored_findings)
     on_phase("critic", "done")
 
     on_phase("publish", "running")

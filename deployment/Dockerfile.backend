@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app/backend
 COPY backend/pyproject.toml ./
 COPY backend/app ./app
+COPY prompts/ /app/prompts/
 
 RUN pip install --no-cache-dir -e ".[dev]"
 
