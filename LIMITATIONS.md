@@ -15,16 +15,25 @@ those files.
 
 ## No retry or resumability
 
-`runner.execute_review_run()` runs the entire 7-phase pipeline in one
+~~`runner.execute_review_run()` runs the entire 7-phase pipeline in one
 straight-line pass per webhook event. Any exception anywhere - a flaky
 Azure OpenAI call, a git clone failure, a transient GitHub API error -
 fails the whole run (`ReviewRun.status = "failed"`). There's no
 checkpointing and no automatic retry; a new push (a `synchronize` event)
-is the only way to get another attempt.
+is the only way to get another attempt.~~
+
+**Resolved.** `complete_structured()` (the single LLM call site used by
+every pipeline phase) now retries up to 3× on transient errors
+(`RateLimitError`, `APIConnectionError`, `ServiceUnavailableError`,
+`InternalServerError`, `BadGatewayError`) with 1.5 s exponential backoff
+(waits: 1.5 s → 3 s → 6 s). Permanent errors (auth failures, bad
+requests) propagate immediately without retrying. Git clone and GitHub API
+failures still fail the run — phase-level checkpointing remains a future
+improvement.
 
 ## No stable identity for findings across re-reviews
 
-The re-review comparison (`runner._fetch_previous_findings`) pulls the
+~~The re-review comparison (`runner._fetch_previous_findings`) pulls the
 most recent prior run's published findings as plain text and asks the LLM
 to classify each as resolved/still-present/unrelated against the current
 diff. There's no fingerprint or hash identifying "this is the same finding"
@@ -32,7 +41,18 @@ across runs - matching relies entirely on the LLM reading prose. Paraphrased
 wording or line-number drift from an unrelated earlier hunk could break
 the comparison. The list is capped at 15 findings (highest-confidence
 first) to bound prompt growth, but isn't deduplicated against the new
-run's findings beyond what the LLM does itself.
+run's findings beyond what the LLM does itself.~~
+
+**Resolved.** Each `Finding` row now stores a `fingerprint`: the first
+16 hex chars of `sha256(file | dimension | normalised_finding_text)`.
+Line number is deliberately excluded so the fingerprint survives line
+drift when unrelated hunks shift the file. On re-review, previous
+findings are labelled `[fp:xxxx]` in the prompt and the LLM is required
+to return a structured `PreviousFindingStatus` verdict
+(`resolved` / `still_present` / `unrelated`) per fingerprint — replacing
+the old prose-matching approach with a verifiable, code-level ID.
+Existing databases are migrated automatically at startup via
+`ALTER TABLE finding ADD COLUMN fingerprint TEXT`.
 
 ## Single repo/PR per webhook event
 
