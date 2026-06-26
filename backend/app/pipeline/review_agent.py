@@ -22,7 +22,13 @@ _RE_REVIEW_INSTRUCTIONS = (
     "can cite the current code showing the issue remains - do not re-raise a "
     "finding just because it was raised last time without re-checking it "
     "against the current diff. Only include 'still present' and genuinely "
-    "new findings in your output; do not include resolved or unrelated ones."
+    "new findings in your output; do not include resolved or unrelated ones.\n\n"
+    "The same evidence rules from the main prompt apply when deciding 'still present': "
+    "do not re-raise a logging finding if a logger call already exists on that path; "
+    "do not re-raise a correctness finding about callers if those callers are not in "
+    "this diff; do not re-raise a finding whose only evidence is a hedge word like "
+    "'may' or 'might' without a concrete failure trace. If a previous finding fails "
+    "any of these checks, mark it resolved or unrelated — never still present."
 )
 
 
