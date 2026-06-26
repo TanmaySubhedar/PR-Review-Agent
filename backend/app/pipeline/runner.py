@@ -89,12 +89,16 @@ async def execute_review_run(review_run_id: str, pr_event: PREvent) -> None:
         def on_phase(phase: str, status: str) -> None:
             _set_phase(session, review_run_id, phase, status)
 
+        run_tag = f"[{review_run_id[:8]}] [{pr_event.repo_full_name}#{pr_event.pr_number}]"
         try:
             run.status = "analyzing"
             session.add(run)
             session.commit()
+            logger.info("%s review started", run_tag)
 
             _set_phase(session, review_run_id, "ingestion", "running")
+            logger.info("%s [0/7] INGESTION starting — fetching PR details from GitHub", run_tag)
+            t0 = __import__("time").monotonic()
             changed_files, commits = github_client.fetch_pr_event_details(
                 pr_event.repo_full_name, pr_event.pr_number
             )
@@ -102,6 +106,8 @@ async def execute_review_run(review_run_id: str, pr_event: PREvent) -> None:
             pr_event.commits = commits
             file_diffs = github_client.fetch_file_diffs(pr_event.repo_full_name, pr_event.pr_number)
             _set_phase(session, review_run_id, "ingestion", "done")
+            logger.info("%s [0/7] INGESTION done in %.1fs — %d file(s), %d commit(s)",
+                        run_tag, __import__("time").monotonic() - t0, len(file_diffs), len(commits))
 
             previous_findings = _fetch_previous_findings(
                 session, pr_event.repo_full_name, pr_event.pr_number, review_run_id
@@ -142,7 +148,7 @@ async def execute_review_run(review_run_id: str, pr_event: PREvent) -> None:
                 )
             session.commit()
         except Exception as exc:
-            logger.exception("review pipeline failed for run %s", review_run_id)
+            logger.exception("%s pipeline FAILED — %s", run_tag, exc)
             run.status = "failed"
             run.error = str(exc)
             session.add(run)

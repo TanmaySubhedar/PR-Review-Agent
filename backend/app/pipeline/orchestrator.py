@@ -1,8 +1,12 @@
+import logging
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
 from app.github.client import GitHubClient
+
+logger = logging.getLogger(__name__)
 from app.pipeline.blast_radius.engine import compute_blast_radius
 from app.pipeline.context_readers import read_all_contexts
 from app.pipeline.context_retrieval import select_context_files
@@ -90,44 +94,80 @@ async def run_review_pipeline(
     compare against what it said last time instead of re-deriving everything
     from scratch on every push."""
 
+    run_tag = f"[{review_run_id[:8]}] [{pr_event.repo_full_name}#{pr_event.pr_number}]"
+    logger.info("%s pipeline started — %d file(s) changed", run_tag, len(file_diffs))
+
     on_phase("diff_analysis", "running")
+    logger.info("%s [1/7] DIFF ANALYSIS starting", run_tag)
+    t = time.monotonic()
     diff_analysis = analyze_diff(review_run_id, file_diffs)
     on_phase("diff_analysis", "done")
+    logger.info("%s [1/7] DIFF ANALYSIS done in %.1fs — %d changed symbol(s), risk=%s",
+                run_tag, time.monotonic() - t, len(diff_analysis.changed_symbols), diff_analysis.risk_level)
 
     on_phase("blast_radius", "running")
+    logger.info("%s [2/7] BLAST RADIUS starting", run_tag)
+    t = time.monotonic()
     blast_radius = compute_blast_radius(workspace_root, diff_analysis.changed_symbols)
     diff_analysis = refine_risk_with_blast_radius(diff_analysis, blast_radius)
     on_phase("blast_radius", "done")
+    logger.info("%s [2/7] BLAST RADIUS done in %.1fs — %d entries, risk refined to %s",
+                run_tag, time.monotonic() - t, len(blast_radius.entries), diff_analysis.risk_level)
 
     on_phase("context_retrieval", "running")
+    logger.info("%s [3/7] CONTEXT RETRIEVAL starting", run_tag)
+    t = time.monotonic()
     selections = select_context_files(diff_analysis, blast_radius)
     pr_summary = f"{pr_event.title}\n{pr_event.description}".strip()
     reader_outputs = await read_all_contexts(workspace_root, selections, pr_summary)
     context_package = ContextPackage(selections=selections, reader_outputs=reader_outputs)
     on_phase("context_retrieval", "done")
+    logger.info("%s [3/7] CONTEXT RETRIEVAL done in %.1fs — %d file(s) read",
+                run_tag, time.monotonic() - t, len(reader_outputs))
 
     on_phase("synthesis", "running")
+    logger.info("%s [4/7] SYNTHESIS starting", run_tag)
+    t = time.monotonic()
     added_symbols = {cs.symbol_name for cs in diff_analysis.changed_symbols if cs.change_type == "added"}
     repository_context = synthesize_repository_context(blast_radius, reader_outputs, added_symbols)
     on_phase("synthesis", "done")
+    logger.info("%s [4/7] SYNTHESIS done in %.1fs — %d risk area(s)",
+                run_tag, time.monotonic() - t, len(repository_context.risk_areas))
 
     on_phase("review", "running")
+    logger.info("%s [5/7] REVIEW AGENT starting (LLM call)", run_tag)
+    t = time.monotonic()
     review_response = await generate_findings(
         pr_event, file_diffs, diff_analysis, repository_context, previous_findings=previous_findings
     )
     findings = review_response.findings
     on_phase("review", "done")
+    logger.info("%s [5/7] REVIEW AGENT done in %.1fs — %d finding(s) generated",
+                run_tag, time.monotonic() - t, len(findings))
 
     on_phase("critic", "running")
+    logger.info("%s [6/7] CRITIC starting (LLM call)", run_tag)
+    t = time.monotonic()
     scored_findings = await score_findings(findings, diff_analysis, context_package, repository_context)
     diff_analysis.risk_level = _recalibrate_risk(diff_analysis.risk_level, scored_findings)
     on_phase("critic", "done")
+    published  = sum(1 for sf in scored_findings if sf.publish)
+    summarized = sum(1 for sf in scored_findings if sf.downgrade_to_summary)
+    discarded  = sum(1 for sf in scored_findings if not sf.publish and not sf.downgrade_to_summary)
+    logger.info("%s [6/7] CRITIC done in %.1fs — %d published, %d summarized, %d discarded | final risk=%s",
+                run_tag, time.monotonic() - t, published, summarized, discarded, diff_analysis.risk_level)
 
     on_phase("publish", "running")
+    logger.info("%s [7/7] PUBLISH starting", run_tag)
+    t = time.monotonic()
     publish_result = publish_review(
         github_client, pr_event, diff_analysis, repository_context, scored_findings, review_response.change_summary
     )
     on_phase("publish", "done")
+    logger.info("%s [7/7] PUBLISH done in %.1fs — %d inline comment(s) posted",
+                run_tag, time.monotonic() - t, publish_result.get("inline_comments", 0))
+
+    logger.info("%s pipeline complete — final risk=%s", run_tag, diff_analysis.risk_level)
 
     return PipelineResult(
         diff_analysis=diff_analysis,
