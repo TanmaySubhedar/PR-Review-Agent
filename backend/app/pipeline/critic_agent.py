@@ -3,6 +3,7 @@ import re
 from app.config import settings
 from app.github.diff_positions import find_diff_position
 from app.llm.azure_client import complete_structured
+from app.llm.prompts import load_prompt
 from app.schemas.context_package import ContextPackage
 from app.schemas.critic_judgment import CriticJudgment
 from app.schemas.diff_analysis import DiffAnalysis
@@ -10,26 +11,7 @@ from app.schemas.repository_context import RepositoryContext
 from app.schemas.review_finding import ReviewFinding
 from app.schemas.scored_finding import CriticScore, ScoredFinding
 
-_SYSTEM_PROMPT = (
-    "You are the critic in a PR review pipeline. A review agent produced one "
-    "finding about a pull request. Your job is to judge it skeptically, not "
-    "rubber-stamp it:\n"
-    "- respects_repo_context: does the finding stay consistent with the "
-    "provided repository context (affected components/services/tests, known "
-    "risk areas, architecture constraints)? A finding that contradicts the "
-    "repo context or ignores an established pattern should fail this.\n"
-    "- actionable: could a developer act on this immediately without needing "
-    "to ask clarifying questions? Vague findings ('improve error handling') "
-    "fail this; specific ones ('catch the KeyError from payload[\"sub\"] on "
-    "line 12') pass. A finding also fails this if it only names a risk "
-    "category ('concurrency issues might arise') instead of a concrete "
-    "input/code-path/failure - that is pattern-matching, not a real finding.\n"
-    "- confidence: your own 0.0-1.0 confidence that this finding is correct "
-    "and worth a developer's attention. Do not default to a high number - "
-    "most findings should land in a wide range based on actual scrutiny. A "
-    "claim that something is still broken/still present must be backed by "
-    "evidence pointing at currently-unchanged code, not just asserted."
-)
+_SYSTEM_PROMPT = load_prompt("critic_agent_system.md")
 
 HEDGE_WORDS = ("may", "might", "could", "possibly", "potentially")
 _HEDGE_LANGUAGE_RE = re.compile(r"\b(" + "|".join(HEDGE_WORDS) + r")\b", re.IGNORECASE)

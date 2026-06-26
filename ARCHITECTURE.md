@@ -94,7 +94,7 @@ Pure aggregation, no LLM call: merges the blast-radius graph data and the phase-
 
 #### Phase 5 — Review (`review_agent.py`)
 
-One Azure OpenAI call: the diff + risk assessment + repository context (+ previous run's findings, if any, with explicit resolved/still-present/unrelated instructions) → a list of `ReviewFinding`s. The prompt requires a concrete evidence trace for correctness findings and caps severity to match the rigor of the evidence.
+One Azure OpenAI call: the diff + risk assessment + repository context (+ previous run's findings, if any, with explicit resolved/still-present/unrelated instructions) → a list of `ReviewFinding`s across 7 dimensions (correctness, architecture, testing, maintainability, security, performance, logging), plus a `change_summary` and a `suggested_pr_description`. The prompt (`prompts/review_agent_system.md`) requires a concrete evidence trace for correctness/security/performance findings and caps severity to match the rigor of the evidence.
 
 #### Phase 6 — Critic (`critic_agent.py`)
 
@@ -102,7 +102,7 @@ For each finding: a **deterministic** check first (does the cited file/line/evid
 
 #### Phase 7 — Publish (`publisher.py`)
 
-Maps each publishable finding's `(file, line)` to GitHub's diff `position` (`app/github/diff_positions.py`), builds the inline comments + one summary body (risk level, deterministic overall-severity rollup via `compute_overall_severity`, risk areas, downgraded findings, counts), and calls `github_client.create_review(...)` - one GitHub API call posting everything at once.
+Maps each publishable finding's `(file, line)` to GitHub's diff `position` (`app/github/diff_positions.py`), builds the inline comments + one summary body (the `change_summary` first, then risk level, deterministic overall-severity rollup via `compute_overall_severity`, risk areas, downgraded findings, counts), and calls `github_client.create_review(...)` - one GitHub API call posting everything at once.
 
 ## Where it ends
 

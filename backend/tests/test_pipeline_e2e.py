@@ -69,7 +69,9 @@ async def test_full_pipeline_runs_end_to_end_with_mocked_llm_and_fake_github(mon
                     evidence="nonexistent",
                     severity="major",
                 ),
-            ]
+            ],
+            change_summary="Adds an expiry check to validate_token before returning the decoded payload.",
+            suggested_pr_description="## What changed\nAdds an expiry check.\n\n## Why\nPrevents expired tokens.",
         )
 
     async def fake_critic(schema, system_prompt, user_prompt, **kwargs):

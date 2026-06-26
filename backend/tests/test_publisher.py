@@ -152,3 +152,46 @@ def test_publish_review_calls_github_client_with_built_payload():
     assert repo_full_name == "example-org/example-repo"
     assert pr_number == 42
     assert len(inline_comments) == 1
+
+
+def test_build_summary_body_includes_change_summary_when_present():
+    diff_analysis = DiffAnalysis(review_run_id="run-1", changed_symbols=[], risk_level="low")
+    body = build_summary_body(
+        diff_analysis, RepositoryContext(), [], change_summary="Adds an expiry check to validate_token."
+    )
+
+    assert "Adds an expiry check to validate_token." in body
+
+
+def test_publish_review_passes_change_summary_through_to_github_client():
+    client = FakeGitHubClient()
+    diff_analysis = DiffAnalysis(review_run_id="run-1", changed_symbols=[], risk_level="low")
+
+    publish_review(
+        client, _pr_event(), diff_analysis, RepositoryContext(), [_published_finding()],
+        change_summary="Adds an expiry check.",
+    )
+
+    _, _, summary_body, _ = client.calls[0]
+    assert "Adds an expiry check." in summary_body
+
+
+def test_build_inline_comments_supports_new_dimensions():
+    finding = ScoredFinding(
+        finding=ReviewFinding(
+            file="backend/app.py",
+            line=5,
+            dimension="security",
+            finding="Hardcoded API key",
+            evidence='API_KEY = "sk-12345"',
+            severity="blocking",
+        ),
+        critic=CriticScore(evidence_grounded=True, respects_repo_context=True, actionable=True, confidence=0.95),
+        publish=True,
+        diff_position=DiffPosition(file="backend/app.py", new_line=5, old_line=None, position=2, hunk_header=""),
+    )
+
+    comments = build_inline_comments([finding])
+
+    assert len(comments) == 1
+    assert "security/blocking" in comments[0]["body"]

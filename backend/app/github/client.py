@@ -72,7 +72,19 @@ class PATGitHubClient:
     def create_review(
         self, repo_full_name: str, pr_number: int, summary_body: str, inline_comments: list[dict]
     ) -> None:
+        from github import GithubException
+
         repo = self._gh.get_repo(repo_full_name)
         pull = repo.get_pull(pr_number)
         commit = repo.get_commit(pull.head.sha)
-        pull.create_review(commit=commit, body=summary_body, event="COMMENT", comments=inline_comments)
+        try:
+            pull.create_review(commit=commit, body=summary_body, event="COMMENT", comments=inline_comments)
+        except GithubException as exc:
+            # 422 "Position could not be resolved" means the diff positions we
+            # computed no longer match what GitHub sees (e.g. force-push, or the
+            # PR was updated between ingestion and publish). Fall back to a
+            # summary-only review so the analysis isn't silently lost.
+            if exc.status == 422:
+                pull.create_review(commit=commit, body=summary_body, event="COMMENT", comments=[])
+            else:
+                raise

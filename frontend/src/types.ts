@@ -9,6 +9,8 @@ export interface ReviewRun {
   status: "received" | "analyzing" | "done" | "failed";
   risk_level: "low" | "medium" | "high" | null;
   error: string | null;
+  change_summary: string | null;
+  suggested_pr_description: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -18,7 +20,7 @@ export interface Finding {
   review_run_id: string;
   file: string;
   line: number | null;
-  dimension: "correctness" | "architecture" | "testing" | "maintainability";
+  dimension: "correctness" | "architecture" | "testing" | "maintainability" | "security" | "performance" | "logging";
   finding: string;
   evidence: string;
   severity: "info" | "minor" | "major" | "blocking";
@@ -45,4 +47,11 @@ export interface PhaseLog {
   detail: string | null;
   started_at: string | null;
   finished_at: string | null;
+}
+
+export interface ChatMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  timestamp: string;
 }

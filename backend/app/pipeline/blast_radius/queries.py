@@ -49,7 +49,14 @@ def _bfs_symbol_nodes(graph: nx.DiGraph, start: str, edge_kind: str, reverse: bo
 
 
 def find_callers(graph: nx.DiGraph, node_id: str, max_depth: int) -> list[tuple[str, int]]:
-    return list(_bfs_symbol_nodes(graph, node_id, "calls", reverse=True, max_depth=max_depth).items())
+    # Exclude test files — they call production code to verify it, not to depend
+    # on it at runtime. Counting them as callers inflates fan-in and produces
+    # misleading "failures cascade to test_foo" risk area bullets.
+    return [
+        (nid, depth)
+        for nid, depth in _bfs_symbol_nodes(graph, node_id, "calls", reverse=True, max_depth=max_depth).items()
+        if not TEST_PATH_RE.search(graph.nodes[nid]["file"])
+    ]
 
 
 def find_callees(graph: nx.DiGraph, node_id: str, max_depth: int) -> list[tuple[str, int]]:

@@ -3,9 +3,17 @@
 An autonomous, repository-aware PR review agent. On every GitHub pull request
 event it: analyzes the diff, maps the blast radius of the change across the
 whole repo (callers, callees, tests, docs), synthesizes that into repository
-context, asks Azure OpenAI to review the diff with that context, critiques
-each finding before trusting it, and posts the surviving findings back to
+context, asks Azure OpenAI to review the diff across a 7-category checklist
+(security, correctness, performance, logging, tests, readability, breaking
+changes), critiques each finding before trusting it, and posts the surviving
+findings - plus a change summary and a suggested PR description - back to
 the PR as a GitHub review.
+
+See [DESIGN.md](DESIGN.md) for the design rationale, [ARCHITECTURE.md](ARCHITECTURE.md)
+for the exact execution trace, and [LIMITATIONS.md](LIMITATIONS.md) for known
+gaps. Two Claude Code Skills ship with this repo: `.claude/skills/review-checklist`
+(run the same checklist manually on any diff) and `.claude/skills/local-pipeline-demo`
+(run the full pipeline against a fixture diff with no webhook needed).
 
 ```
 backend/   FastAPI app + the review pipeline (Python)
@@ -136,3 +144,11 @@ Open or update a pull request on that repo. You should see:
 - **Only Python, JS, TS, and TSX are understood** by the diff-analysis and
   blast-radius engine (Tree-sitter based). Other languages still get a
   review of the raw diff, just without repository-context grounding.
+
+## Alternative: run with Docker
+
+`cd deployment && docker compose up --build` brings up both services
+together (dashboard on :5173, backend on :8001) without a local Python/Node
+setup. See [deployment/README.md](deployment/README.md) - note Docker
+doesn't solve the webhook-tunnel requirement in step 4 above, it's
+orthogonal.
