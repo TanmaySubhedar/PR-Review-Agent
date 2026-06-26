@@ -61,11 +61,16 @@ def _call_kwargs() -> dict:
 
 
 async def complete_structured(
-    schema: type[BaseModel], system_prompt: str, user_prompt: str, *, temperature: float = 0.2
+    schema: type[BaseModel], system_prompt: str, user_prompt: str, *,
+    temperature: float = 0.2,
+    max_tokens: int | None = None,
 ) -> BaseModel:
     last_exc: Exception | None = None
     for attempt in range(_MAX_RETRIES + 1):
         try:
+            extra: dict = {}
+            if max_tokens is not None:
+                extra["max_tokens"] = max_tokens
             response = await litellm.acompletion(
                 model=_model_name(),
                 messages=[
@@ -74,6 +79,7 @@ async def complete_structured(
                 ],
                 response_format=schema,
                 temperature=temperature,
+                **extra,
                 **_call_kwargs(),
             )
             content = response.choices[0].message.content

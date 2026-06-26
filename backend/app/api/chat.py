@@ -1,6 +1,8 @@
 import logging
+from collections import defaultdict
+from time import monotonic
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlmodel import Session, select
 
@@ -13,6 +15,24 @@ router = APIRouter(prefix="/api", tags=["chat"])
 
 _MAX_RUNS = 20
 _MAX_FINDINGS_PER_RUN = 10
+_MAX_CONTEXT_CHARS = 60_000   # ~15k tokens — well inside gpt-4o's 128k window
+_CHAT_MAX_TOKENS = 1_024      # output budget; prevents silent truncation on large context
+_RATE_LIMIT = 10              # max chat requests per IP
+_RATE_WINDOW = 60.0           # rolling window in seconds
+
+_rate_store: dict[str, list[float]] = defaultdict(list)
+
+
+def _check_rate_limit(ip: str) -> None:
+    now = monotonic()
+    cutoff = now - _RATE_WINDOW
+    _rate_store[ip] = [t for t in _rate_store[ip] if t > cutoff]
+    if len(_rate_store[ip]) >= _RATE_LIMIT:
+        raise HTTPException(
+            status_code=429,
+            detail="Too many requests — please wait a moment before sending another message.",
+        )
+    _rate_store[ip].append(now)
 
 
 class ChatRequest(BaseModel):
@@ -40,7 +60,7 @@ Answer questions clearly and helpfully. When citing specific findings, mention t
 If asked why code was changed, use the change_summary field.
 If asked about risk, explain the blast-radius reasoning (fan-in callers, test coverage gaps).
 If you genuinely lack enough context, say so honestly — do not guess or fabricate details.
-Format responses with markdown where it improves readability. Keep answers focused and concise."""
+Format responses with markdown where it improves readability. Keep answers focused and concise — aim for 250 words or fewer unless the question requires more detail."""
 
 
 def _fmt_run(run: ReviewRun, findings: list[Finding]) -> str:
@@ -73,9 +93,13 @@ def _fmt_run(run: ReviewRun, findings: list[Finding]) -> str:
 
 @router.post("/chat", response_model=ChatResponse)
 async def chat(
+    request: Request,
     body: ChatRequest,
     session: Session = Depends(get_session),
 ) -> ChatResponse:
+    ip = request.client.host if request.client else "unknown"
+    _check_rate_limit(ip)
+
     if body.review_run_id:
         run = session.get(ReviewRun, body.review_run_id)
         if not run:
@@ -100,6 +124,10 @@ async def chat(
             f"Context: {len(runs)} reviewed pull request(s)\n\n" + "\n\n---\n\n".join(parts)
         )
 
+    if len(context) > _MAX_CONTEXT_CHARS:
+        context = context[:_MAX_CONTEXT_CHARS] + "\n\n[...context truncated to fit token budget...]"
+        logger.warning("chat context truncated to %d chars for ip=%s", _MAX_CONTEXT_CHARS, ip)
+
     user_prompt = f"{context}\n\n---\n\nUser question: {body.message}"
-    result = await complete_structured(_Answer, _SYSTEM_PROMPT, user_prompt)
+    result = await complete_structured(_Answer, _SYSTEM_PROMPT, user_prompt, max_tokens=_CHAT_MAX_TOKENS)
     return ChatResponse(response=result.answer)
