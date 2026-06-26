@@ -13,16 +13,16 @@ _HEDGE_WORDS_LIST = ", ".join(f"'{w}'" for w in HEDGE_WORDS)
 _SYSTEM_PROMPT = load_prompt("review_agent_system.md").replace("__HEDGE_WORDS__", _HEDGE_WORDS_LIST)
 
 _RE_REVIEW_INSTRUCTIONS = (
-    "\n\nThis PR was reviewed before. Previous findings are listed below. For "
-    "EACH previous finding, you must explicitly decide one of: resolved (the "
-    "code that caused it changed enough that it no longer applies), still "
-    "present (you can point to the exact unchanged or insufficiently-changed "
-    "code that still causes it), or unrelated (it's about a part of the diff "
-    "that's no longer relevant). Only mark something 'still present' if you "
-    "can cite the current code showing the issue remains - do not re-raise a "
-    "finding just because it was raised last time without re-checking it "
-    "against the current diff. Only include 'still present' and genuinely "
-    "new findings in your output; do not include resolved or unrelated ones.\n\n"
+    "\n\nThis PR was reviewed before. Previous findings are listed below, each tagged with a "
+    "[fp:xxxx] fingerprint ID. For EACH fingerprint you MUST include one entry in "
+    "previous_finding_statuses with that exact fingerprint string and one of:\n"
+    "  - 'resolved': the code that caused it changed enough in this diff that it no longer applies\n"
+    "  - 'still_present': you can point to exact, currently-unchanged code that still causes it\n"
+    "  - 'unrelated': it is about a part of the diff no longer relevant to the current change\n\n"
+    "Only 'still_present' and genuinely new findings belong in your output findings list. "
+    "Only mark still_present if you can cite the current code showing the issue remains — "
+    "do not re-raise a finding just because it was raised last time without re-checking it "
+    "against the current diff.\n\n"
     "The same evidence rules from the main prompt apply when deciding 'still present': "
     "do not re-raise a logging finding if a logger call already exists on that path; "
     "do not re-raise a correctness finding about callers if those callers are not in "
@@ -49,11 +49,19 @@ def _format_repository_context(repository_context: RepositoryContext) -> str:
     )
 
 
-def _format_previous_findings(previous_findings: list[ReviewFinding]) -> str:
+def _format_previous_findings(
+    previous_findings: list[ReviewFinding],
+    previous_fingerprints: list[str | None] | None = None,
+) -> str:
     lines = []
-    for f in previous_findings:
+    for i, f in enumerate(previous_findings):
+        fp = previous_fingerprints[i] if previous_fingerprints and i < len(previous_fingerprints) else None
+        fp_label = f" [fp:{fp}]" if fp else ""
         location = f"{f.file}" + (f":{f.line}" if f.line is not None else "")
-        lines.append(f"- [{f.dimension}/{f.severity}] {location}: {f.finding}\n  evidence: {f.evidence}")
+        lines.append(
+            f"- [{f.dimension}/{f.severity}]{fp_label} {location}: {f.finding}\n"
+            f"  evidence: {f.evidence}"
+        )
     return "\n".join(lines)
 
 
@@ -63,6 +71,7 @@ async def generate_findings(
     diff_analysis: DiffAnalysis,
     repository_context: RepositoryContext,
     previous_findings: list[ReviewFinding] | None = None,
+    previous_fingerprints: list[str | None] | None = None,
 ) -> ReviewFindingsResponse:
     user_prompt = (
         f"PR title: {pr_event.title}\n"
@@ -76,6 +85,9 @@ async def generate_findings(
     system_prompt = _SYSTEM_PROMPT
     if previous_findings:
         system_prompt += _RE_REVIEW_INSTRUCTIONS
-        user_prompt += f"\n\nPrevious review's findings on this PR:\n{_format_previous_findings(previous_findings)}"
+        user_prompt += (
+            f"\n\nPrevious review's findings on this PR:\n"
+            f"{_format_previous_findings(previous_findings, previous_fingerprints)}"
+        )
 
     return await complete_structured(ReviewFindingsResponse, system_prompt, user_prompt)

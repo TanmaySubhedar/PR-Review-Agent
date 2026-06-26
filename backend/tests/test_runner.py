@@ -33,9 +33,10 @@ def test_fetch_previous_findings_returns_empty_when_no_prior_run():
     session = _make_session()
     _make_run(session, repo="o/r", pr_number=1, status="done", created_at=datetime.now(timezone.utc))
 
-    result = _fetch_previous_findings(session, "o/r", 1, exclude_run_id="some-other-run")
+    findings, fingerprints = _fetch_previous_findings(session, "o/r", 1, exclude_run_id="some-other-run")
 
-    assert result == []
+    assert findings == []
+    assert fingerprints == []
 
 
 def test_fetch_previous_findings_picks_most_recent_done_run_and_only_published():
@@ -49,11 +50,14 @@ def test_fetch_previous_findings_picks_most_recent_done_run_and_only_published()
     session.add(Finding(review_run_id=newer.id, file="new.py", line=3, dimension="testing", finding="discarded finding", evidence="z", severity="minor", confidence=0.2, published=False, discarded=True))
     session.commit()
 
-    result = _fetch_previous_findings(session, "o/r", 1, exclude_run_id=current.id)
+    findings, fingerprints = _fetch_previous_findings(session, "o/r", 1, exclude_run_id=current.id)
 
-    assert len(result) == 1
-    assert result[0].file == "new.py"
-    assert result[0].finding == "new finding"
+    assert len(findings) == 1
+    assert findings[0].file == "new.py"
+    assert findings[0].finding == "new finding"
+    assert len(fingerprints) == 1
+    # Row was written without a fingerprint so it comes back None
+    assert fingerprints[0] is None
 
 
 def test_fetch_previous_findings_excludes_current_run_even_if_marked_done():
@@ -62,9 +66,10 @@ def test_fetch_previous_findings_excludes_current_run_even_if_marked_done():
     session.add(Finding(review_run_id=current.id, file="x.py", line=1, dimension="correctness", finding="f", evidence="e", severity="major", confidence=0.9, published=True))
     session.commit()
 
-    result = _fetch_previous_findings(session, "o/r", 1, exclude_run_id=current.id)
+    findings, fingerprints = _fetch_previous_findings(session, "o/r", 1, exclude_run_id=current.id)
 
-    assert result == []
+    assert findings == []
+    assert fingerprints == []
 
 
 def test_fetch_previous_findings_caps_at_max_and_keeps_highest_confidence():
@@ -88,10 +93,11 @@ def test_fetch_previous_findings_caps_at_max_and_keeps_highest_confidence():
         )
     session.commit()
 
-    result = _fetch_previous_findings(session, "o/r", 1, exclude_run_id=current.id)
+    findings, fingerprints = _fetch_previous_findings(session, "o/r", 1, exclude_run_id=current.id)
 
-    assert len(result) == _MAX_PREVIOUS_FINDINGS
+    assert len(findings) == _MAX_PREVIOUS_FINDINGS
+    assert len(fingerprints) == _MAX_PREVIOUS_FINDINGS
     # the highest-confidence findings (largest i) must be the ones kept
-    kept_files = {f.file for f in result}
+    kept_files = {f.file for f in findings}
     assert "f19.py" in kept_files  # i=19 has the highest confidence among 0..19
     assert "f0.py" not in kept_files

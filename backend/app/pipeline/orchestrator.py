@@ -82,6 +82,7 @@ async def run_review_pipeline(
     github_client: GitHubClient,
     on_phase: PhaseCallback = _noop_callback,
     previous_findings: list[ReviewFinding] | None = None,
+    previous_fingerprints: list[str | None] | None = None,
 ) -> PipelineResult:
     """Runs phases 2-9 of the architecture (ingestion/phase 1 already happened
     to produce `pr_event`). `workspace_root` is a checked-out copy of the PR
@@ -138,7 +139,9 @@ async def run_review_pipeline(
     logger.info("%s [5/7] REVIEW AGENT starting (LLM call)", run_tag)
     t = time.monotonic()
     review_response = await generate_findings(
-        pr_event, file_diffs, diff_analysis, repository_context, previous_findings=previous_findings
+        pr_event, file_diffs, diff_analysis, repository_context,
+        previous_findings=previous_findings,
+        previous_fingerprints=previous_fingerprints,
     )
     findings = review_response.findings
     on_phase("review", "done")
