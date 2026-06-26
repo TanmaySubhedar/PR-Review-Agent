@@ -1,0 +1,52 @@
+diff --git a/auth/utils.py b/auth/utils.py
+index 1a2b3c4..5d6e7f8 100644
+--- a/auth/utils.py
++++ b/auth/utils.py
+@@ -1,10 +1,15 @@
+ import hashlib
++import secrets
+
+
+ def hash_password(password: str) -> str:
+-    return hashlib.md5(password.encode()).hexdigest()
++    salt = secrets.token_hex(16)
++    hashed = hashlib.sha256((salt + password).encode()).hexdigest()
++    return f"{salt}:{hashed}"
+
+
+-def verify_password(plain: str, hashed: str) -> bool:
+-    return hash_password(plain) == hashed
++def verify_password(plain: str, stored: str) -> bool:
++    if ":" not in stored:
++        return False
++    salt, expected = stored.split(":", 1)
++    return hashlib.sha256((salt + plain).encode()).hexdigest() == expected
+@@ -20,6 +25,9 @@ def verify_password(plain: str, stored: str) -> bool:
+
++def generate_token(length: int = 32) -> str:
++    return secrets.token_urlsafe(length)
++
+diff --git a/api/routes.py b/api/routes.py
+new file mode 100644
+index 0000000..abc1234
+--- /dev/null
++++ b/api/routes.py
+@@ -0,0 +1,18 @@
++from flask import Blueprint, request, jsonify
++from auth.utils import verify_password, generate_token
++
++bp = Blueprint("api", __name__)
++
++
++def register(app):
++    app.register_blueprint(bp, url_prefix="/api")
++
++
++@bp.route("/login", methods=["POST"])
++def login():
++    data = request.get_json()
++    username = data.get("username")
++    password = data.get("password")
++    if not username or not password:
++        return jsonify({"error": "missing credentials"}), 400
++    return jsonify({"token": generate_token()})
