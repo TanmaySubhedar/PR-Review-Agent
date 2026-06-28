@@ -185,10 +185,11 @@ def get_repo_graph(
 
     if module_only:
         import networkx as nx
+        _base = graph  # capture the full DiGraph before reassigning the name
         graph = nx.subgraph_view(
-            graph,
-            filter_node=lambda n: graph.nodes[n].get("kind") == "module",
-            filter_edge=lambda u, v: graph.edges[u, v].get("kind") == "imports",
+            _base,
+            filter_node=lambda n: _base.nodes[n].get("kind") == "module",
+            filter_edge=lambda u, v: _base.edges[u, v].get("kind") == "imports",
         )
 
     nodes = [

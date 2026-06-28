@@ -16,19 +16,54 @@ import type { GraphResponse, Repo } from "../types";
 
 // ── Layout via dagre ──────────────────────────────────────────────────────────
 
+const NODE_W = 180;
+const NODE_H = 40;
+
 function applyDagreLayout(nodes: Node[], edges: Edge[]): Node[] {
+  // Split: nodes that appear in at least one edge vs truly isolated nodes.
+  // Dagre stacks all isolated nodes in a single column which looks terrible
+  // for sparse graphs (e.g. module view with only a few import edges).
+  const connectedIds = new Set<string>();
+  edges.forEach(e => { connectedIds.add(e.source); connectedIds.add(e.target); });
+
+  const connected = nodes.filter(n => connectedIds.has(n.id));
+  const isolated  = nodes.filter(n => !connectedIds.has(n.id));
+
+  // Dagre layout for connected subgraph
   const g = new dagre.graphlib.Graph();
   g.setDefaultEdgeLabel(() => ({}));
-  g.setGraph({ rankdir: "LR", ranksep: 80, nodesep: 40 });
+  g.setGraph({ rankdir: "TB", ranksep: 100, nodesep: 60, marginx: 40, marginy: 40 });
 
-  nodes.forEach(n => g.setNode(n.id, { width: 160, height: 36 }));
-  edges.forEach(e => g.setEdge(e.source, e.target));
-  dagre.layout(g);
-
-  return nodes.map(n => {
-    const pos = g.node(n.id);
-    return { ...n, position: { x: pos.x - 80, y: pos.y - 18 } };
+  connected.forEach(n => g.setNode(n.id, { width: NODE_W, height: NODE_H }));
+  edges.forEach(e => {
+    if (connectedIds.has(e.source) && connectedIds.has(e.target)) {
+      g.setEdge(e.source, e.target);
+    }
   });
+  if (connected.length > 0) dagre.layout(g);
+
+  const laidOutConnected = connected.map(n => {
+    const pos = g.node(n.id);
+    return { ...n, position: { x: pos.x - NODE_W / 2, y: pos.y - NODE_H / 2 } };
+  });
+
+  // Grid layout for isolated nodes — placed to the right of the connected graph
+  const graphRight = laidOutConnected.length > 0
+    ? Math.max(...laidOutConnected.map(n => n.position.x)) + NODE_W + 80
+    : 0;
+  const COLS = Math.max(1, Math.ceil(Math.sqrt(isolated.length)));
+  const CELL_W = NODE_W + 24;
+  const CELL_H = NODE_H + 20;
+
+  const laidOutIsolated = isolated.map((n, i) => ({
+    ...n,
+    position: {
+      x: graphRight + (i % COLS) * CELL_W,
+      y: Math.floor(i / COLS) * CELL_H + 40,
+    },
+  }));
+
+  return [...laidOutConnected, ...laidOutIsolated];
 }
 
 // ── API → React Flow conversion ───────────────────────────────────────────────
@@ -55,10 +90,10 @@ function toFlowGraph(
       border: `1px solid ${n.kind === "module" ? `${colors.accent}60` : "#8b5cf660"}`,
       borderRadius: 8,
       color: colors.text,
-      fontSize: 11,
+      fontSize: 12,
       fontFamily: "monospace",
-      padding: "4px 10px",
-      maxWidth: 160,
+      padding: "6px 12px",
+      width: NODE_W,
       overflow: "hidden",
       textOverflow: "ellipsis",
       whiteSpace: "nowrap",
