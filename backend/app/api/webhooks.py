@@ -1,7 +1,8 @@
+import asyncio
 import json as _json
 import logging
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from sqlmodel import Session
 
 from app.config import settings
@@ -9,7 +10,6 @@ from app.db import get_session
 from app.github.signature import verify_signature
 from app.models import PhaseLog, ReviewRun
 from app.pipeline.ingestion import is_relevant_pull_request_event, parse_pull_request_event
-from app.pipeline.runner import execute_review_run
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
@@ -18,7 +18,6 @@ router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 @router.post("/github")
 async def github_webhook(
     request: Request,
-    background_tasks: BackgroundTasks,
     x_hub_signature_256: str | None = Header(default=None),
     x_github_event: str | None = Header(default=None),
     session: Session = Depends(get_session),
@@ -52,7 +51,7 @@ async def github_webhook(
         title=pr_event.title,
         head_sha=pr_event.head_sha,
         base_sha=pr_event.base_sha,
-        status="received",
+        status="queued",
     )
     session.add(run)
     session.commit()
@@ -71,8 +70,11 @@ async def github_webhook(
         session.add(PhaseLog(review_run_id=run.id, phase=phase))
     session.commit()
 
-    logger.info("queued review run %s for %s#%s", run.id, pr_event.repo_full_name, pr_event.pr_number)
+    queue: asyncio.Queue = request.app.state.review_queue
+    await queue.put((run.id, pr_event))
 
-    background_tasks.add_task(execute_review_run, run.id, pr_event)
-
+    logger.info(
+        "enqueued review run %s for %s#%s (queue depth now %d)",
+        run.id, pr_event.repo_full_name, pr_event.pr_number, queue.qsize(),
+    )
     return {"status": "queued", "review_run_id": run.id}

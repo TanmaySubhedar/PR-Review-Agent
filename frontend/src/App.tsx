@@ -1,6 +1,8 @@
 import { createContext, useState } from "react";
 import { Link, Route, Routes } from "react-router-dom";
 import { ChatPanel } from "./components/ChatPanel";
+import { RepoGraphPage } from "./pages/RepoGraphPage";
+import { RepoListPage } from "./pages/RepoListPage";
 import { ReviewDetailPage } from "./pages/ReviewDetailPage";
 import { ReviewListPage } from "./pages/ReviewListPage";
 import { brand, colors } from "./theme";
@@ -51,6 +53,20 @@ function NavBar({ onOpenChat }: { onOpenChat: () => void }) {
         className="tagline">
         {brand.tagline}
       </span>
+
+      {/* Nav links */}
+      <Link
+        to="/repos"
+        style={{
+          fontSize: 13, color: colors.muted, textDecoration: "none", fontWeight: 500,
+          marginLeft: 16,
+          transition: "color 0.15s",
+        }}
+        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = colors.text; }}
+        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = colors.muted; }}
+      >
+        Repos
+      </Link>
 
       {/* Live indicator */}
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: "auto" }}>
@@ -119,8 +135,10 @@ export function App() {
       }}>
         <div style={{ maxWidth: 1100, margin: "0 auto", padding: "32px 24px" }}>
           <Routes>
-            <Route path="/"                  element={<ReviewListPage />} />
-            <Route path="/reviews/:reviewRunId" element={<ReviewDetailPage />} />
+            <Route path="/"                          element={<ReviewListPage />} />
+            <Route path="/reviews/:reviewRunId"      element={<ReviewDetailPage />} />
+            <Route path="/repos"                     element={<RepoListPage />} />
+            <Route path="/repos/:repoId/graph"       element={<RepoGraphPage />} />
           </Routes>
         </div>
 

@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     reader_concurrency: int = 5
     blast_radius_max_depth: int = 3
     blast_radius_max_files: int = 20
+    repo_onboarding_max_files: int = 2000
 
     def __repr__(self) -> str:
         return "Settings(***redacted***)"

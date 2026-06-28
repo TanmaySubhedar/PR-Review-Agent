@@ -6,13 +6,58 @@ export interface ReviewRun {
   title: string;
   head_sha: string;
   base_sha: string;
-  status: "received" | "analyzing" | "done" | "failed";
+  status: "received" | "queued" | "analyzing" | "done" | "failed";
   risk_level: "low" | "medium" | "high" | null;
   error: string | null;
   change_summary: string | null;
   suggested_pr_description: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface Repo {
+  id: string;
+  full_name: string;
+  clone_url: string;
+  default_branch: string;
+  onboarding_status: "pending" | "cloning" | "building_graph" | "ready" | "failed";
+  onboarding_error: string | null;
+  graph_node_count: number | null;
+  graph_edge_count: number | null;
+  graph_truncated: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RepoRegisterRequest {
+  full_name: string;
+  clone_url: string;
+  default_branch: string;
+}
+
+export interface GraphNode {
+  id: string;
+  kind: "module" | "symbol";
+  file?: string;
+  name?: string;
+  symbol_type?: string;
+  start_line?: number;
+}
+
+export interface GraphLink {
+  source: string;
+  target: string;
+  kind: "imports" | "contains" | "calls" | string;
+}
+
+export interface GraphResponse {
+  repo_id: string;
+  full_name: string;
+  node_count: number;
+  edge_count: number;
+  truncated: boolean;
+  nodes: GraphNode[];
+  links: GraphLink[];
 }
 
 export interface Finding {

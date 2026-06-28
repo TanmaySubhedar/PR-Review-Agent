@@ -26,14 +26,25 @@ function statusInfo(s: ReviewRun["status"]) {
   if (s === "done")      return { label: "Done",       col: colors.status.done };
   if (s === "analyzing") return { label: "Analyzing",  col: colors.status.running };
   if (s === "failed")    return { label: "Failed",     col: colors.status.failed };
+  if (s === "queued")    return { label: "Queued",     col: colors.muted };
   return                        { label: "Received",   col: colors.muted };
 }
 
-function ReviewCard({ run, index }: { run: ReviewRun; index: number }) {
+function queuePosition(run: ReviewRun, allRuns: ReviewRun[]): number | null {
+  if (run.status !== "queued") return null;
+  const queued = allRuns
+    .filter(r => r.status === "queued")
+    .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+  const pos = queued.findIndex(r => r.id === run.id);
+  return pos >= 0 ? pos + 1 : null;
+}
+
+function ReviewCard({ run, index, allRuns }: { run: ReviewRun; index: number; allRuns: ReviewRun[] }) {
   const { openChat } = useContext(ChatContext);
-  const analyzing = run.status === "analyzing" || run.status === "received";
+  const analyzing = run.status === "analyzing" || run.status === "received" || run.status === "queued";
   const risk = riskColor(run.risk_level);
   const st   = statusInfo(run.status);
+  const qPos = queuePosition(run, allRuns);
 
   return (
     <div
@@ -108,6 +119,13 @@ function ReviewCard({ run, index }: { run: ReviewRun; index: number }) {
           }}>
             ● {run.risk_level}
           </span>
+        ) : qPos !== null ? (
+          <span style={{
+            fontSize: 11, fontWeight: 600, padding: "3px 9px", borderRadius: 20,
+            background: colors.surface3, color: colors.muted,
+          }}>
+            Queue #{qPos}
+          </span>
         ) : analyzing ? (
           <span style={{ fontSize: 11, color: colors.muted }}>assessing…</span>
         ) : null}
@@ -173,7 +191,7 @@ export function ReviewListPage() {
   }, []);
 
   const done      = reviews.filter(r => r.status === "done").length;
-  const analyzing = reviews.filter(r => r.status === "analyzing" || r.status === "received").length;
+  const analyzing = reviews.filter(r => r.status === "analyzing" || r.status === "received" || r.status === "queued").length;
   const failed    = reviews.filter(r => r.status === "failed").length;
   const highRisk  = reviews.filter(r => r.risk_level === "high").length;
 
@@ -212,7 +230,7 @@ export function ReviewListPage() {
           gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
           gap: 14,
         }}>
-          {reviews.map((run, i) => <ReviewCard key={run.id} run={run} index={i} />)}
+          {reviews.map((run, i) => <ReviewCard key={run.id} run={run} index={i} allRuns={reviews} />)}
         </div>
       )}
     </div>
