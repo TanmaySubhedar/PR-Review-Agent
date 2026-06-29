@@ -13,13 +13,12 @@ The steps in order:
 
 1. Prerequisites — Docker, Git, Node (for the smee webhook relay)
 2. GitHub Fine-Grained PAT — the token the agent uses to read PRs and post reviews
-3. Webhook secret — a random string shared between GitHub and the backend
-4. smee.io channel — a public URL that relays GitHub webhook events to localhost
-5. GitHub webhook registration — tell GitHub to send PR events to smee
-6. `.env` file — fill in credentials; validate with a script (values never shown)
-7. Docker stack — `docker compose up --build -d` + health check
-8. smee tunnel — start the local relay process
-9. Register a repository — the app needs to know which repo to watch
+3. smee.io channel — a public URL that relays GitHub webhook events to localhost
+4. GitHub webhook registration — tell GitHub to send PR events to smee
+5. `.env` file — fill in credentials; validate with a script (values never shown)
+6. Docker stack — `docker compose up --build -d` + health check
+7. smee tunnel — start the local relay process
+8. Register a repository — the app needs to know which repo to watch
 
 ---
 
@@ -113,31 +112,11 @@ The backend uses a Personal Access Token to:
 
 Tell the user:
 
-> Save this token somewhere safe for a moment — you will paste it into `.env` as `GITHUB_TOKEN` in Step 6. Do not share it or commit it.
+> Save this token somewhere safe for a moment — you will paste it into `.env` as `GITHUB_TOKEN` in Step 5. Do not share it or commit it.
 
 ---
 
-## Step 3: Webhook Secret
-
-The backend and GitHub both need the same random string to sign and verify webhook payloads. Generate one now so you have it ready for both Step 5 (GitHub webhook registration) and Step 6 (`.env`).
-
-Run from the repo root:
-
-```
-python .claude/skills/onboard/scripts/generate_secret.py
-```
-
-This prints a single 64-character hex string. Tell the user:
-
-> Copy the output. You will need this exact string in two places:
-> 1. The GitHub webhook configuration (Step 5) as the "Secret"
-> 2. Your `.env` file (Step 6) as `GITHUB_WEBHOOK_SECRET`
->
-> Keep it in a temporary note — it is not sensitive at this stage (it only becomes sensitive once it is in `.env`), but you need it in the next two steps.
-
----
-
-## Step 4: smee.io Channel
+## Step 3: smee.io Channel
 
 smee.io is a lightweight webhook relay purpose-built for local development. It creates a permanent public URL that forwards every GitHub webhook payload to your local machine.
 
@@ -150,14 +129,14 @@ smee.io is a lightweight webhook relay purpose-built for local development. It c
 > `https://smee.io/aBcDeFgHiJkLmNoP`
 >
 > Copy that URL. You will need it in two places:
-> 1. The GitHub webhook configuration (Step 5) as the "Payload URL"
-> 2. The smee client command (Step 8)
+> 1. The GitHub webhook configuration (Step 4) as the "Payload URL"
+> 2. The smee client command (Step 7)
 >
 > Bookmark it or keep the tab open — the channel persists as long as you use it.
 
 ---
 
-## Step 5: GitHub Webhook Registration
+## Step 4: GitHub Webhook Registration
 
 Now register the webhook on the target GitHub repository so GitHub sends PR events to your smee channel.
 
@@ -171,9 +150,8 @@ This is a manual step in the GitHub UI:
 
    | Field | Value |
    |---|---|
-   | **Payload URL** | The smee channel URL from Step 4 (e.g. `https://smee.io/aBcDeFgHiJkLmNoP`) |
+   | **Payload URL** | The smee channel URL from Step 3 (e.g. `https://smee.io/aBcDeFgHiJkLmNoP`) |
    | **Content type** | `application/json` |
-   | **Secret** | The webhook secret generated in Step 3 |
    | **Which events** | Select "Let me select individual events", then check **Pull requests** only |
    | **Active** | Checked |
 
@@ -185,11 +163,10 @@ GitHub immediately fires a `ping` event. You will see it appear in the smee chan
 
 - **"Settings" tab is missing** — you need admin access to the repository to register webhooks.
 - **Payload URL is your local IP** — that will not work from GitHub's servers. It must be the smee.io URL.
-- **Forgot the secret** — re-run `python .claude/skills/onboard/scripts/generate_secret.py` to generate a new one, then update both the GitHub webhook and `.env` to use the new value.
 
 ---
 
-## Step 6: .env File
+## Step 5: .env File
 
 Now create the `.env` file and fill in all the credentials you have gathered.
 
@@ -224,7 +201,6 @@ AZURE_OPENAI_MODEL=gpt-4o ← leave as-is (controls model for both paths)
 **GitHub credentials:**
 ```
 GITHUB_TOKEN=             ← paste the PAT from Step 2
-GITHUB_WEBHOOK_SECRET=    ← paste the secret generated in Step 3
 ```
 
 **Everything else** (`DATABASE_URL`, `CRITIC_CONFIDENCE_THRESHOLD`, etc.) has sensible defaults — leave them as-is for now.
@@ -241,14 +217,13 @@ Work through any failures it reports. Common ones:
 
 - **AZURE_OPENAI_ENDPOINT still has placeholder** — the default `https://your-resource.openai.azure.com/` was not replaced. Paste your actual Azure resource endpoint.
 - **GITHUB_TOKEN is empty** — paste the PAT from Step 2.
-- **GITHUB_WEBHOOK_SECRET is empty** — paste the secret from Step 3.
 - **No LLM path configured** — if using OpenAI direct, the `OPENAI_API_KEY=` line is commented out in `.env.example`. Uncomment it and fill in the value.
 
 Once the script reports all green, move on.
 
 ---
 
-## Step 7: Launch the Docker Stack
+## Step 6: Launch the Docker Stack
 
 From the repo root:
 
@@ -300,7 +275,7 @@ docker compose -f deployment/docker-compose.yml logs frontend --tail=50
 
 ---
 
-## Step 8: Start the smee Tunnel
+## Step 7: Start the smee Tunnel
 
 The stack is running, but GitHub cannot deliver webhooks to localhost without the relay. Start the smee client — it must stay running in a dedicated terminal for the duration of your session:
 
@@ -308,7 +283,7 @@ The stack is running, but GitHub cannot deliver webhooks to localhost without th
 npx smee-client --url https://smee.io/<your-channel-id> --target http://localhost:8001/webhooks/github
 ```
 
-Replace `<your-channel-id>` with the channel URL from Step 4.
+Replace `<your-channel-id>` with the channel URL from Step 3.
 
 Note the target path is `/webhooks/github` (not `/api/webhooks/github`, not `/`). That is the exact FastAPI route that handles incoming PR events.
 
@@ -316,7 +291,7 @@ Once running, the smee client logs each forwarded payload. Leave this terminal o
 
 ### Verify the relay
 
-In the GitHub webhook settings for your repo, click **Recent Deliveries**. The `ping` event from Step 5 should show a green checkmark. If it shows red, check:
+In the GitHub webhook settings for your repo, click **Recent Deliveries**. The `ping` event from Step 4 should show a green checkmark. If it shows red, check:
 
 - The smee client is running (the terminal should show activity)
 - The channel URL in the webhook matches the one in your smee command exactly
@@ -326,12 +301,11 @@ In the GitHub webhook settings for your repo, click **Recent Deliveries**. The `
 
 - **"npx: command not found"** — Node was not installed correctly. Revisit Step 1.
 - **Smee starts but shows no forwarded events** — trigger a ping by going to GitHub → repo → Settings → Webhooks → (your webhook) → Redeliver (ping). If still nothing, the Payload URL in GitHub is wrong.
-- **Backend returns 401 for a delivery** — the webhook Secret in GitHub does not match `GITHUB_WEBHOOK_SECRET` in `.env`. Update one to match the other, then restart the backend: `docker compose -f deployment/docker-compose.yml up -d --force-recreate backend`.
 - **Backend returns 422 or 500** — check backend logs. This is usually a payload parsing issue.
 
 ---
 
-## Step 9: Register a Repository
+## Step 8: Register a Repository
 
 The app needs to know which GitHub repository to analyze. Register it through the UI.
 

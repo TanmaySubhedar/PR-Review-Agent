@@ -21,7 +21,6 @@ PLACEHOLDER_PATTERNS = {
 # Fields that must be non-empty for the app to work
 REQUIRED_FIELDS = [
     "GITHUB_TOKEN",
-    "GITHUB_WEBHOOK_SECRET",
 ]
 
 # At least one of these LLM path groups must be fully filled
