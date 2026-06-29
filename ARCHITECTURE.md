@@ -1,9 +1,39 @@
-# How a review run actually happens
+# Architecture — how it actually works
 
-This documents the real, current execution path - not the aspirational
-9-phase doc, but what the code in this repo actually does, file by file,
+This documents the real, current execution paths — not an aspirational
+diagram, but what the code in this repo actually does, file by file,
 function by function, in the order it runs. See [README.md](README.md) for
-how to set the system up and run it.
+setup instructions.
+
+## System components
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│  Frontend (React + Vite)                                     │
+│  /           — PR review list + phase timeline               │
+│  /reviews/:id — finding detail                               │
+│  /repos       — repository management                        │
+│  /repos/:id/graph — React Flow call-graph visualization      │
+│  (chatbot panel on graph page — repo AI Q&A)                 │
+└────────────────────────┬─────────────────────────────────────┘
+                         │  /api/*  (nginx reverse proxy, 120s timeout)
+┌────────────────────────▼─────────────────────────────────────┐
+│  Backend (FastAPI on :8001)                                  │
+│  POST /webhooks/github  — PR review trigger                  │
+│  GET/POST /api/reviews  — review run CRUD                    │
+│  POST/GET /api/repos    — repo registration                  │
+│  GET /api/repos/:id/graph — graph nodes + edges              │
+│  POST /api/repos/:id/chat — two-step LLM chatbot             │
+│                                                              │
+│  asyncio.Queue workers:                                      │
+│   review_queue_worker  — one PR processed at a time         │
+│   onboarding_worker    — one repo onboarded at a time       │
+└──────────────────────────────────────────────────────────────┘
+                         │
+                    SQLite DB (named Docker volume)
+                    ├── ReviewRun, Finding, PhaseLog
+                    └── Repository (graph_json: gzip+b64)
+```
 
 ## End-to-end flow
 
