@@ -1,22 +1,15 @@
 import { useEffect, useRef, useState } from "react";
-import { sendChat } from "../api/client";
+import { sendRepoChat } from "../api/client";
 import { colors } from "../theme";
-import type { ChatMessage, ReviewRun } from "../types";
+import type { ChatMessage } from "../types";
 
-const SUGGESTED: Record<string, string[]> = {
-  global: [
-    "What was the highest risk finding across all PRs?",
-    "Are there any security issues in recent reviews?",
-    "Summarize all reviewed pull requests",
-    "Which PRs have blocking or major findings?",
-  ],
-  pr: [
-    "Why was this code changed?",
-    "What are the main risks in this PR?",
-    "Explain the blast radius analysis",
-    "What did the critic filter out and why?",
-  ],
-};
+const REPO_SUGGESTIONS = [
+  "What is the main entry point of this codebase?",
+  "How does authentication / login work?",
+  "Which files are most central to the app?",
+  "Explain the database layer and how data flows",
+  "Where does request handling start?",
+];
 
 function useTypewriter(text: string, active: boolean): string {
   const [out, setOut] = useState(active ? "" : text);
@@ -28,7 +21,7 @@ function useTypewriter(text: string, active: boolean): string {
       i++;
       setOut(text.slice(0, i));
       if (i >= text.length) clearInterval(id);
-    }, 10);
+    }, 8);
     return () => clearInterval(id);
   }, [text, active]);
   return out;
@@ -52,7 +45,6 @@ function SimpleMarkdown({ text }: { text: string }) {
 function Message({ msg, isLast }: { msg: ChatMessage; isLast: boolean }) {
   const isUser = msg.role === "user";
   const displayed = useTypewriter(msg.content, !isUser && isLast);
-
   const typing = !isUser && isLast && displayed.length < msg.content.length;
 
   return (
@@ -65,11 +57,11 @@ function Message({ msg, isLast }: { msg: ChatMessage; isLast: boolean }) {
       {!isUser && (
         <div style={{
           width: 26, height: 26, borderRadius: "50%",
-          background: `linear-gradient(135deg, ${colors.accent}, #8b5cf6)`,
+          background: "linear-gradient(135deg, #10b981, #3b82f6)",
           display: "flex", alignItems: "center", justifyContent: "center",
           fontSize: 12, fontWeight: 700, color: "#fff",
           marginRight: 8, flexShrink: 0, marginTop: 2,
-        }}>S</div>
+        }}>⬡</div>
       )}
       <div style={{
         maxWidth: "82%",
@@ -96,10 +88,10 @@ function TypingIndicator() {
     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
       <div style={{
         width: 26, height: 26, borderRadius: "50%",
-        background: `linear-gradient(135deg, ${colors.accent}, #8b5cf6)`,
+        background: "linear-gradient(135deg, #10b981, #3b82f6)",
         display: "flex", alignItems: "center", justifyContent: "center",
         fontSize: 12, fontWeight: 700, color: "#fff", flexShrink: 0,
-      }}>S</div>
+      }}>⬡</div>
       <div style={{
         background: colors.surface2, border: `1px solid ${colors.border}`,
         borderRadius: "16px 16px 16px 4px", padding: "12px 16px",
@@ -118,17 +110,27 @@ function TypingIndicator() {
 }
 
 interface Props {
+  repoId: string;
+  repoName: string;
   onClose: () => void;
-  reviewRun?: ReviewRun | null;
   messages: ChatMessage[];
   onMessages: (msgs: ChatMessage[]) => void;
+  initialInput?: string;
 }
 
-export function ChatPanel({ onClose, reviewRun, messages, onMessages }: Props) {
-  const [input, setInput] = useState("");
+export function RepoChatPanel({ repoId, repoName, onClose, messages, onMessages, initialInput }: Props) {
+  const [input, setInput] = useState(initialInput ?? "");
   const [loading, setLoading] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // sync when parent pushes a pre-fill (node click)
+  useEffect(() => {
+    if (initialInput) {
+      setInput(initialInput);
+      inputRef.current?.focus();
+    }
+  }, [initialInput]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -153,7 +155,7 @@ export function ChatPanel({ onClose, reviewRun, messages, onMessages }: Props) {
     setLoading(true);
 
     try {
-      const res = await sendChat(q, reviewRun?.id);
+      const res = await sendRepoChat(repoId, q);
       const aiMsg: ChatMessage = {
         id: crypto.randomUUID(),
         role: "assistant",
@@ -161,31 +163,31 @@ export function ChatPanel({ onClose, reviewRun, messages, onMessages }: Props) {
         timestamp: new Date().toISOString(),
       };
       onMessages([...messages, userMsg, aiMsg]);
-    } catch {
-      const errMsg: ChatMessage = {
+    } catch (err) {
+      const detail = (err as Error).message.includes("409")
+        ? "Graph not ready yet — wait for onboarding to finish."
+        : "Could not reach the backend. Make sure the server is running.";
+      onMessages([...messages, userMsg, {
         id: crypto.randomUUID(),
         role: "assistant",
-        content: "Sorry, I couldn't reach the backend. Make sure the server is running.",
+        content: detail,
         timestamp: new Date().toISOString(),
-      };
-      onMessages([...messages, userMsg, errMsg]);
+      }]);
     } finally {
       setLoading(false);
     }
   };
-
-  const suggestions = reviewRun ? SUGGESTED.pr : SUGGESTED.global;
 
   return (
     <div
       className="slide-in-r"
       style={{
         position: "fixed", top: 0, right: 0, bottom: 0,
-        width: 400, zIndex: 200,
+        width: 420, zIndex: 300,
         background: colors.surface,
         borderLeft: `1px solid ${colors.border}`,
         display: "flex", flexDirection: "column",
-        boxShadow: "-4px 0 40px rgba(0,0,0,0.4)",
+        boxShadow: "-4px 0 40px rgba(0,0,0,0.5)",
       }}
     >
       {/* Header */}
@@ -194,26 +196,25 @@ export function ChatPanel({ onClose, reviewRun, messages, onMessages }: Props) {
         borderBottom: `1px solid ${colors.border}`,
         display: "flex", alignItems: "center", justifyContent: "space-between",
         flexShrink: 0,
-        background: `linear-gradient(135deg, ${colors.surface} 0%, rgba(59,130,246,0.05) 100%)`,
+        background: "linear-gradient(135deg, rgba(16,185,129,0.08) 0%, rgba(59,130,246,0.05) 100%)",
       }}>
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <div style={{
               width: 28, height: 28, borderRadius: "50%",
-              background: `linear-gradient(135deg, ${colors.accent}, #8b5cf6)`,
+              background: "linear-gradient(135deg, #10b981, #3b82f6)",
               display: "flex", alignItems: "center", justifyContent: "center",
               fontSize: 14, fontWeight: 800, color: "#fff",
-            }}>S</div>
-            <span style={{ fontWeight: 700, fontSize: 15, color: colors.text }}>Sentinel AI</span>
+            }}>⬡</div>
+            <span style={{ fontWeight: 700, fontSize: 15, color: colors.text }}>Repo AI</span>
           </div>
-          <div style={{ marginTop: 4, display: "flex", alignItems: "center", gap: 6 }}>
+          <div style={{ marginTop: 4 }}>
             <span style={{
               fontSize: 11, padding: "2px 8px", borderRadius: 20,
-              background: reviewRun ? colors.accentDim : colors.surface3,
-              color: reviewRun ? colors.accent : colors.muted,
-              fontWeight: 600,
+              background: "rgba(16,185,129,0.15)", color: "#10b981",
+              fontWeight: 600, fontFamily: "monospace",
             }}>
-              {reviewRun ? `PR #${reviewRun.pr_number} · ${reviewRun.repo_full_name}` : "All PRs"}
+              {repoName}
             </span>
           </div>
         </div>
@@ -232,17 +233,16 @@ export function ChatPanel({ onClose, reviewRun, messages, onMessages }: Props) {
       <div style={{ flex: 1, overflowY: "auto", padding: "16px 16px 0" }}>
         {messages.length === 0 ? (
           <div className="fade-in" style={{ textAlign: "center", padding: "32px 16px" }}>
-            <div style={{ fontSize: 36, marginBottom: 12 }}>✦</div>
+            <div style={{ fontSize: 36, marginBottom: 12 }}>⬡</div>
             <p style={{ color: colors.text, fontWeight: 600, marginBottom: 4 }}>
-              Ask me anything
+              Ask about this codebase
             </p>
             <p style={{ color: colors.muted, fontSize: 13, marginBottom: 24 }}>
-              {reviewRun
-                ? "I have full context on this PR — findings, risk analysis, and change summary."
-                : "I can answer questions about all reviewed pull requests."}
+              I'll read the actual source files to give you precise answers — even for
+              files with generic names like <code>utils.py</code>.
             </p>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {suggestions.map(s => (
+              {REPO_SUGGESTIONS.map(s => (
                 <button
                   key={s}
                   onClick={() => send(s)}
@@ -250,9 +250,9 @@ export function ChatPanel({ onClose, reviewRun, messages, onMessages }: Props) {
                     background: colors.surface2, border: `1px solid ${colors.border}`,
                     borderRadius: 8, padding: "8px 12px",
                     color: colors.text, fontSize: 12, cursor: "pointer",
-                    textAlign: "left", transition: "border-color 0.15s, background 0.15s",
+                    textAlign: "left", transition: "border-color 0.15s",
                   }}
-                  onMouseEnter={e => { (e.target as HTMLElement).style.borderColor = colors.accent; }}
+                  onMouseEnter={e => { (e.target as HTMLElement).style.borderColor = "#10b981"; }}
                   onMouseLeave={e => { (e.target as HTMLElement).style.borderColor = colors.border; }}
                 >
                   {s}
@@ -282,7 +282,7 @@ export function ChatPanel({ onClose, reviewRun, messages, onMessages }: Props) {
           borderRadius: 12, padding: "8px 12px",
           transition: "border-color 0.2s",
         }}
-          onFocus={e => { (e.currentTarget as HTMLElement).style.borderColor = colors.accent; }}
+          onFocus={e => { (e.currentTarget as HTMLElement).style.borderColor = "#10b981"; }}
           onBlur={e => { (e.currentTarget as HTMLElement).style.borderColor = colors.border; }}
         >
           <textarea
@@ -292,7 +292,7 @@ export function ChatPanel({ onClose, reviewRun, messages, onMessages }: Props) {
             onKeyDown={e => {
               if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(input); }
             }}
-            placeholder="Ask about your pull requests…"
+            placeholder="Ask about files, features, or how things connect…"
             rows={1}
             style={{
               flex: 1, background: "none", border: "none", outline: "none",
@@ -304,7 +304,7 @@ export function ChatPanel({ onClose, reviewRun, messages, onMessages }: Props) {
             onClick={() => send(input)}
             disabled={!input.trim() || loading}
             style={{
-              background: input.trim() && !loading ? colors.accent : colors.surface3,
+              background: input.trim() && !loading ? "#10b981" : colors.surface3,
               border: "none", borderRadius: 8, cursor: input.trim() && !loading ? "pointer" : "default",
               color: "#fff", padding: "6px 12px", fontSize: 13, fontWeight: 600,
               transition: "background 0.15s", flexShrink: 0,
@@ -314,7 +314,7 @@ export function ChatPanel({ onClose, reviewRun, messages, onMessages }: Props) {
           </button>
         </div>
         <p style={{ fontSize: 11, color: colors.muted, textAlign: "center", marginTop: 6 }}>
-          Enter to send · Shift+Enter for newline
+          Enter to send · click a graph node to ask about it
         </p>
       </div>
     </div>

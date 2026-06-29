@@ -41,3 +41,6 @@ async function deleteJSON(url: string): Promise<void> {
   if (!res.ok && res.status !== 204) throw new Error(`${url} → ${res.status}`);
 }
 export const deleteRepo = (id: string): Promise<void> => deleteJSON(`${REPOS_URL}/${id}`);
+
+export const sendRepoChat = (repoId: string, message: string): Promise<{ response: string }> =>
+  postJSON(`${REPOS_URL}/${repoId}/chat`, { message });

@@ -8,11 +8,12 @@ import {
   type Edge,
   type Node,
 } from "@xyflow/react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { getRepo, getRepoGraph } from "../api/client";
+import { RepoChatPanel } from "../components/RepoChatPanel";
 import { colors } from "../theme";
-import type { GraphResponse, Repo } from "../types";
+import type { ChatMessage, GraphResponse, Repo } from "../types";
 
 // ── Layout via dagre ──────────────────────────────────────────────────────────
 
@@ -20,16 +21,12 @@ const NODE_W = 180;
 const NODE_H = 40;
 
 function applyDagreLayout(nodes: Node[], edges: Edge[]): Node[] {
-  // Split: nodes that appear in at least one edge vs truly isolated nodes.
-  // Dagre stacks all isolated nodes in a single column which looks terrible
-  // for sparse graphs (e.g. module view with only a few import edges).
   const connectedIds = new Set<string>();
   edges.forEach(e => { connectedIds.add(e.source); connectedIds.add(e.target); });
 
   const connected = nodes.filter(n => connectedIds.has(n.id));
   const isolated  = nodes.filter(n => !connectedIds.has(n.id));
 
-  // Dagre layout for connected subgraph
   const g = new dagre.graphlib.Graph();
   g.setDefaultEdgeLabel(() => ({}));
   g.setGraph({ rankdir: "TB", ranksep: 100, nodesep: 60, marginx: 40, marginy: 40 });
@@ -47,7 +44,6 @@ function applyDagreLayout(nodes: Node[], edges: Edge[]): Node[] {
     return { ...n, position: { x: pos.x - NODE_W / 2, y: pos.y - NODE_H / 2 } };
   });
 
-  // Grid layout for isolated nodes — placed to the right of the connected graph
   const graphRight = laidOutConnected.length > 0
     ? Math.max(...laidOutConnected.map(n => n.position.x)) + NODE_W + 80
     : 0;
@@ -68,9 +64,7 @@ function applyDagreLayout(nodes: Node[], edges: Edge[]): Node[] {
 
 // ── API → React Flow conversion ───────────────────────────────────────────────
 
-function toFlowGraph(
-  data: GraphResponse
-): { nodes: Node[]; edges: Edge[] } {
+function toFlowGraph(data: GraphResponse): { nodes: Node[]; edges: Edge[] } {
   const edgeColor: Record<string, string> = {
     imports: colors.accent,
     calls: "#8b5cf6",
@@ -83,6 +77,7 @@ function toFlowGraph(
       label: n.file ? n.file.split("/").pop() ?? n.id : (n.name ?? n.id),
       fullLabel: n.file ?? n.name ?? n.id,
       kind: n.kind,
+      name: n.name,
     },
     position: { x: 0, y: 0 },
     style: {
@@ -126,6 +121,11 @@ export function RepoGraphPage() {
   const [error, setError]       = useState<string | null>(null);
   const [loading, setLoading]   = useState(true);
 
+  // chat state
+  const [chatOpen, setChatOpen]         = useState(false);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatInput, setChatInput]       = useState("");
+
   const loadGraph = useCallback(async (mo: boolean) => {
     if (!repoId) return;
     setLoading(true);
@@ -159,6 +159,20 @@ export function RepoGraphPage() {
       },
     }));
   }, [nodes, search]);
+
+  const onNodeClick = useCallback((_event: React.MouseEvent, node: Node) => {
+    const isModule = node.data.kind === "module";
+    const question = isModule
+      ? `Explain the ${node.data.fullLabel} file`
+      : `Explain the ${String(node.data.name)} function`;
+    setChatInput(question);
+    setChatOpen(true);
+  }, []);
+
+  const openChat = () => {
+    setChatInput("");
+    setChatOpen(true);
+  };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 56px)" }}>
@@ -215,8 +229,39 @@ export function RepoGraphPage() {
               </button>
             ))}
           </div>
+
+          {/* Ask AI button */}
+          <button
+            onClick={openChat}
+            style={{
+              display: "flex", alignItems: "center", gap: 6,
+              background: chatOpen ? "rgba(16,185,129,0.2)" : "rgba(16,185,129,0.1)",
+              border: `1px solid ${chatOpen ? "#10b981" : "rgba(16,185,129,0.3)"}`,
+              borderRadius: 8, padding: "6px 14px",
+              color: "#10b981", fontSize: 12, fontWeight: 600, cursor: "pointer",
+              transition: "all 0.15s",
+            }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(16,185,129,0.2)"; }}
+            onMouseLeave={e => {
+              if (!chatOpen) (e.currentTarget as HTMLElement).style.background = "rgba(16,185,129,0.1)";
+            }}
+          >
+            ⬡ Ask AI
+          </button>
         </div>
       </div>
+
+      {/* Hint banner when graph is loaded */}
+      {!loading && !error && nodes.length > 0 && (
+        <div style={{
+          padding: "6px 24px", fontSize: 11, color: colors.muted,
+          borderBottom: `1px solid ${colors.border}`, background: colors.surface,
+          display: "flex", alignItems: "center", gap: 6,
+        }}>
+          <span style={{ color: "#10b981" }}>⬡</span>
+          Click any node to ask Repo AI about that file
+        </div>
+      )}
 
       {/* Graph canvas */}
       <div style={{ flex: 1, position: "relative" }}>
@@ -242,6 +287,7 @@ export function RepoGraphPage() {
           <ReactFlow
             nodes={highlightedNodes}
             edges={edges}
+            onNodeClick={onNodeClick}
             fitView
             minZoom={0.05}
             maxZoom={3}
@@ -256,6 +302,18 @@ export function RepoGraphPage() {
           </ReactFlow>
         )}
       </div>
+
+      {/* Chat panel */}
+      {chatOpen && repo && (
+        <RepoChatPanel
+          repoId={repo.id}
+          repoName={repo.full_name}
+          onClose={() => setChatOpen(false)}
+          messages={chatMessages}
+          onMessages={setChatMessages}
+          initialInput={chatInput}
+        />
+      )}
     </div>
   );
 }
