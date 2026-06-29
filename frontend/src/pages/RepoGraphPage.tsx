@@ -102,13 +102,15 @@ function toFlowGraph(data: GraphResponse): { nodes: Node[]; edges: Edge[] } {
   };
 
   const rawNodes: Node[] = data.nodes.map(n => {
-    // Module nodes: show just the filename.  Symbol nodes: show the symbol name.
+    // Module nodes: id IS the file path (file attr may be null) — always split.
+    // Symbol nodes: show the symbol name; fallback to splitting id.
+    const filePath = n.file ?? n.id;
     const label = n.kind === "module"
-      ? (n.file?.split("/").pop() ?? n.id)
-      : (n.name ?? n.file?.split("/").pop() ?? n.id);
-    // Full tooltip: file path for modules, "file → symbol" for symbols.
+      ? (filePath.split("/").pop() ?? n.id)
+      : (n.name ?? filePath.split("/").pop() ?? n.id);
+    // Tooltip: full file path for modules, "file → symbol" for symbols.
     const fullLabel = n.kind === "module"
-      ? (n.file ?? n.id)
+      ? filePath
       : (n.name && n.file ? `${n.file} → ${n.name}` : n.id);
 
     return {
