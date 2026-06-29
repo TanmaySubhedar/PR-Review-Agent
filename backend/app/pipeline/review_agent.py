@@ -90,4 +90,4 @@ async def generate_findings(
             f"{_format_previous_findings(previous_findings, previous_fingerprints)}"
         )
 
-    return await complete_structured(ReviewFindingsResponse, system_prompt, user_prompt)
+    return await complete_structured(ReviewFindingsResponse, system_prompt, user_prompt, max_tokens=6000)
