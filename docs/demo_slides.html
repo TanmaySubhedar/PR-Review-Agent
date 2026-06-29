@@ -1,0 +1,645 @@
+<title>Sentinel PR — Demo Presentation</title>
+<style>
+  :root {
+    --bg: #0a0b0f;
+    --surface: #111218;
+    --surface2: #181920;
+    --border: #2a2d3a;
+    --accent: #8b5cf6;
+    --accent2: #10b981;
+    --text: #e8eaf0;
+    --muted: #6b7280;
+    --risk-high: #ef4444;
+    --risk-medium: #f59e0b;
+    --risk-low: #10b981;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
+    height: 100vh;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  .deck { width: 100%; height: 100vh; position: relative; }
+
+  .slide {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 60px 80px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s ease;
+  }
+  .slide.active { opacity: 1; pointer-events: auto; }
+
+  /* Nav */
+  nav {
+    position: fixed;
+    bottom: 28px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    z-index: 100;
+    background: rgba(17,18,24,0.85);
+    backdrop-filter: blur(8px);
+    border: 1px solid var(--border);
+    border-radius: 40px;
+    padding: 10px 20px;
+  }
+  .dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--border);
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .dot.active { background: var(--accent); }
+  .nav-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    border-radius: 6px;
+    padding: 4px 12px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.15s;
+  }
+  .nav-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .slide-num {
+    font-size: 12px;
+    color: var(--muted);
+    font-family: monospace;
+    min-width: 40px;
+    text-align: center;
+  }
+
+  /* Typography */
+  .kicker {
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 700;
+    margin-bottom: 14px;
+  }
+  h1 {
+    font-size: 56px;
+    font-weight: 800;
+    letter-spacing: -1.5px;
+    line-height: 1.1;
+    background: linear-gradient(135deg, #e8eaf0 30%, #8b5cf6 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 16px;
+  }
+  h2 {
+    font-size: 38px;
+    font-weight: 800;
+    letter-spacing: -0.8px;
+    color: var(--text);
+    margin-bottom: 32px;
+  }
+  .lead {
+    font-size: 20px;
+    color: var(--muted);
+    max-width: 640px;
+    text-align: center;
+    line-height: 1.6;
+  }
+  p { line-height: 1.7; color: var(--muted); }
+
+  /* Grid helpers */
+  .row { display: flex; gap: 20px; width: 100%; }
+  .col { flex: 1; }
+
+  /* Cards */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 22px 24px;
+  }
+  .card.accent-border { border-color: rgba(139,92,246,0.4); }
+  .card.green-border  { border-color: rgba(16,185,129,0.4); }
+  .card h3 { font-size: 15px; font-weight: 700; margin-bottom: 10px; color: var(--text); }
+  .card p  { font-size: 13px; }
+
+  /* Phase pipeline */
+  .pipeline {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    flex-wrap: wrap;
+    justify-content: center;
+    width: 100%;
+  }
+  .phase {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 16px;
+    font-size: 12px;
+    font-family: monospace;
+    color: var(--text);
+    white-space: nowrap;
+    position: relative;
+  }
+  .phase.llm { border-color: rgba(139,92,246,0.5); color: #a78bfa; }
+  .phase.det { border-color: rgba(16,185,129,0.5); color: #34d399; }
+  .arrow {
+    color: var(--muted);
+    font-size: 18px;
+    padding: 0 4px;
+    flex-shrink: 0;
+  }
+
+  /* Skills */
+  .skill-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    flex: 1;
+  }
+  .skill-name {
+    font-family: monospace;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--accent);
+    margin-bottom: 6px;
+  }
+  .skill-card p { font-size: 12px; }
+
+  /* Badge */
+  .badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  .badge-purple { background: rgba(139,92,246,0.15); border: 1px solid rgba(139,92,246,0.4); color: #a78bfa; }
+  .badge-green  { background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.4); color: #34d399; }
+  .badge-red    { background: rgba(239,68,68,0.15);  border: 1px solid rgba(239,68,68,0.4);  color: #f87171; }
+  .badge-amber  { background: rgba(245,158,11,0.15); border: 1px solid rgba(245,158,11,0.4); color: #fbbf24; }
+
+  /* Bullet list */
+  ul.check { list-style: none; padding: 0; }
+  ul.check li {
+    padding: 7px 0;
+    font-size: 14px;
+    color: var(--muted);
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  ul.check li:last-child { border-bottom: none; }
+  ul.check li .ico { color: var(--accent2); flex-shrink: 0; margin-top: 2px; }
+
+  /* Score table */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { padding: 8px 10px; border-bottom: 1px solid var(--border); text-align: left; }
+  th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+  td.r { text-align: right; font-weight: 700; color: var(--accent); }
+
+  /* Code block */
+  .code {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    font-family: monospace;
+    font-size: 12px;
+    color: #c4b5fd;
+    line-height: 1.8;
+    width: 100%;
+  }
+  .code .g { color: #34d399; }
+  .code .m { color: var(--muted); }
+
+  /* Big stat */
+  .stat-row { display: flex; gap: 20px; }
+  .stat {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 22px;
+    text-align: center;
+  }
+  .stat .num { font-size: 42px; font-weight: 800; color: var(--accent); line-height: 1; }
+  .stat .lbl { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 6px; }
+
+  /* Ambient grid background */
+  .grid-bg {
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(139,92,246,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(139,92,246,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .slide > * { position: relative; z-index: 1; }
+
+  /* Title glow */
+  .glow {
+    position: absolute;
+    width: 500px; height: 300px;
+    background: radial-gradient(ellipse, rgba(139,92,246,0.12) 0%, transparent 70%);
+    top: 50%; left: 50%;
+    transform: translate(-50%, -60%);
+    pointer-events: none;
+  }
+
+  /* Full-width slide layout variant */
+  .slide.left { align-items: flex-start; }
+  .slide.left h2 { text-align: left; }
+
+  .divider { width: 48px; height: 3px; background: var(--accent); border-radius: 2px; margin-bottom: 28px; }
+</style>
+
+<div class="grid-bg"></div>
+
+<div class="deck" id="deck">
+
+  <!-- 1. Title -->
+  <div class="slide active" id="s1">
+    <div class="glow"></div>
+    <div class="kicker">3-Day AI Keystone Workshop · Project 6</div>
+    <h1>Sentinel PR</h1>
+    <p class="lead">An autonomous, repository-aware PR review agent that traces the full blast radius of every change — and posts grounded findings before a human opens the diff.</p>
+    <div style="display:flex;gap:10px;margin-top:32px;flex-wrap:wrap;justify-content:center;">
+      <span class="badge badge-purple">Azure OpenAI</span>
+      <span class="badge badge-green">Docker</span>
+      <span class="badge badge-purple">3 Claude Skills</span>
+      <span class="badge badge-green">Git PR Review Agent</span>
+      <span class="badge badge-amber">7-Category Checklist</span>
+    </div>
+  </div>
+
+  <!-- 2. Problem -->
+  <div class="slide" id="s2">
+    <div class="kicker">The Problem</div>
+    <h2>PR review misses the blast radius</h2>
+    <div class="divider"></div>
+    <div class="row" style="max-width:900px;">
+      <div class="card" style="flex:1.2;">
+        <h3 style="color:#f87171;">What humans miss</h3>
+        <ul class="check" style="margin-top:8px;">
+          <li><span class="ico">✗</span>Who else calls this changed function?</li>
+          <li><span class="ico">✗</span>Are any callers missing test coverage?</li>
+          <li><span class="ico">✗</span>Did the signature break existing callers?</li>
+          <li><span class="ico">✗</span>Is this a sensitive path — auth, payments, DB?</li>
+          <li><span class="ico">✗</span>What was the last reviewer's verdict on this file?</li>
+        </ul>
+      </div>
+      <div class="card green-border" style="flex:1;">
+        <h3 style="color:#34d399;">What Sentinel PR does</h3>
+        <ul class="check" style="margin-top:8px;">
+          <li><span class="ico" style="color:#34d399;">✓</span>Builds full call graph before the LLM sees the diff</li>
+          <li><span class="ico" style="color:#34d399;">✓</span>Finds all callers, callees, and tests for changed symbols</li>
+          <li><span class="ico" style="color:#34d399;">✓</span>Detects breaking signature changes with Tree-sitter</li>
+          <li><span class="ico" style="color:#34d399;">✓</span>Critiques every finding before publishing</li>
+          <li><span class="ico" style="color:#34d399;">✓</span>Posts structured review within seconds of PR open</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. What We Built -->
+  <div class="slide" id="s3">
+    <div class="kicker">What We Built</div>
+    <h2>Two systems in one</h2>
+    <div class="divider"></div>
+    <div class="row" style="max-width:900px;">
+      <div class="card accent-border">
+        <h3>⚡ Automated PR Review</h3>
+        <p>GitHub webhook fires on every PR open/update → 7-phase pipeline → grounded review posted back with "What changed" + "Issues found" sections and severity icons 🔴🟠🟡⚪</p>
+        <div style="margin-top:12px;display:flex;gap:6px;flex-wrap:wrap;">
+          <span class="badge badge-purple">7 review categories</span>
+          <span class="badge badge-purple">Critic gate</span>
+          <span class="badge badge-amber">Re-review aware</span>
+        </div>
+      </div>
+      <div class="card green-border">
+        <h3>⬡ Repo Graph + AI Chatbot</h3>
+        <p>Register any GitHub repo → system clones, builds NetworkX call graph with Tree-sitter, persists it → interactive React Flow visualization → LLM chatbot grounded in real source code</p>
+        <div style="margin-top:12px;display:flex;gap:6px;flex-wrap:wrap;">
+          <span class="badge badge-green">React Flow</span>
+          <span class="badge badge-green">Two-step LLM</span>
+          <span class="badge badge-green">Real source fetch</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. Pipeline -->
+  <div class="slide" id="s4">
+    <div class="kicker">Architecture</div>
+    <h2>7-phase pipeline</h2>
+    <div class="divider"></div>
+    <div class="pipeline" style="max-width:900px;gap:4px;">
+      <div class="phase det">① Ingestion<br><span style="font-size:10px;color:#6b7280;">diff + commits</span></div>
+      <div class="arrow">→</div>
+      <div class="phase det">② Diff Analysis<br><span style="font-size:10px;color:#6b7280;">Tree-sitter · no LLM</span></div>
+      <div class="arrow">→</div>
+      <div class="phase det">③ Blast Radius<br><span style="font-size:10px;color:#6b7280;">call graph · no LLM</span></div>
+      <div class="arrow">→</div>
+      <div class="phase llm">④ Context Retrieval<br><span style="font-size:10px;color:#6b7280;">parallel LLM reads</span></div>
+      <div class="arrow">→</div>
+      <div class="phase det">⑤ Synthesis<br><span style="font-size:10px;color:#6b7280;">aggregation · no LLM</span></div>
+      <div class="arrow">→</div>
+      <div class="phase llm">⑥ Review Agent<br><span style="font-size:10px;color:#6b7280;">1 LLM call</span></div>
+      <div class="arrow">→</div>
+      <div class="phase llm">⑦ Critic Gate<br><span style="font-size:10px;color:#6b7280;">det. + 1 LLM/finding</span></div>
+      <div class="arrow">→</div>
+      <div class="phase det">⑧ Publish<br><span style="font-size:10px;color:#6b7280;">GitHub review</span></div>
+    </div>
+    <div class="row" style="max-width:900px;margin-top:24px;">
+      <div class="card" style="flex:1;">
+        <h3>Key design principle</h3>
+        <p style="font-size:13px;">Deterministic risk scoring (Tree-sitter facts, graph fan-in, test coverage) happens <strong style="color:var(--text);">before</strong> any LLM call. The LLM gets grounded context — not a raw diff to guess about.</p>
+      </div>
+      <div class="card" style="flex:1;">
+        <h3>Sequential queue</h3>
+        <p style="font-size:13px;">PRs processed one at a time via <code style="color:#a78bfa;">asyncio.Queue</code> worker — no parallel pipeline executions, predictable resource usage. Queued PRs show "Queue #N" in the dashboard.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. Critic Gate -->
+  <div class="slide" id="s5">
+    <div class="kicker">Custom Thinking — The Twist</div>
+    <h2>4 layers of hallucination reduction</h2>
+    <div class="divider"></div>
+    <div class="row" style="max-width:900px;">
+      <div style="flex:1;display:flex;flex-direction:column;gap:12px;">
+        <div class="card">
+          <h3>① Deterministic evidence gate</h3>
+          <p style="font-size:13px;">Every finding's cited file+line is cross-checked against the actual diff and read context — <em>before</em> any LLM grades it. No file → finding discarded.</p>
+        </div>
+        <div class="card">
+          <h3>② Hedge-word severity cap</h3>
+          <p style="font-size:13px;">"may", "could", "might lead to" — a finding using these words is force-capped to <code style="color:#fbbf24;">minor</code> regardless of what the LLM labeled it.</p>
+        </div>
+      </div>
+      <div style="flex:1;display:flex;flex-direction:column;gap:12px;">
+        <div class="card">
+          <h3>③ Concrete-trace requirement</h3>
+          <p style="font-size:13px;">Prompt requires a specific input → code path → wrong behavior for every major/blocking finding. Risk categories without a trace are rejected.</p>
+        </div>
+        <div class="card">
+          <h3>④ Independent second critic call</h3>
+          <p style="font-size:13px;">The LLM that <em>wrote</em> a finding never grades it. A separate LLM call judges actionability and repo-context consistency — same blind spot can't produce and approve the same hallucination.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6. Repo Graph + Chatbot -->
+  <div class="slide" id="s6">
+    <div class="kicker">Feature — Repo Intelligence</div>
+    <h2>Graph visualization + AI chatbot</h2>
+    <div class="divider"></div>
+    <div class="row" style="max-width:900px;">
+      <div class="card accent-border" style="flex:1.2;">
+        <h3>⬡ Call graph diagram</h3>
+        <p style="font-size:13px;margin-bottom:12px;">Register a repo → system clones + runs Tree-sitter on every Python/JS/TS file → NetworkX graph stored compressed in SQLite → React Flow renders it with dagre auto-layout</p>
+        <ul class="check">
+          <li><span class="ico">✦</span>Module view (files) / Symbol view (functions)</li>
+          <li><span class="ico">✦</span>Hover tooltip shows full file path</li>
+          <li><span class="ico">✦</span>Search box highlights matching nodes</li>
+          <li><span class="ico">✦</span>Click node → chatbot pre-fills</li>
+        </ul>
+      </div>
+      <div class="card green-border" style="flex:1;">
+        <h3>Two-step LLM chatbot</h3>
+        <div class="code" style="margin-top:10px;font-size:11px;">
+          <span class="m">User asks question</span><br>
+          ↓<br>
+          <span class="g">LLM 1: File Picker</span><br>
+          <span class="m">reads graph index</span><br>
+          <span class="m">(filenames + all symbols)</span><br>
+          <span class="m">→ picks ≤4 files</span><br>
+          ↓<br>
+          <span class="g">GitHub API: fetch source</span><br>
+          <span class="m">real code, not summaries</span><br>
+          ↓<br>
+          <span class="g">LLM 2: Answer</span><br>
+          <span class="m">grounded in actual code</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 7. Three Skills -->
+  <div class="slide" id="s7">
+    <div class="kicker">Custom Claude Code Skills</div>
+    <h2>Three skills — all committed and demoed live</h2>
+    <div class="divider"></div>
+    <div class="row" style="max-width:900px;">
+      <div class="skill-card">
+        <div class="skill-name">/review-checklist</div>
+        <p style="font-size:12px;margin-bottom:10px;">Applies the 7-category review standard to any diff on demand — same categories and evidence rules as the automated pipeline, usable without a live webhook.</p>
+        <div style="font-size:11px;color:var(--muted);">
+          security · errors · performance<br>
+          logging · tests · readability · breaking changes
+        </div>
+      </div>
+      <div class="skill-card">
+        <div class="skill-name">/local-pipeline-demo</div>
+        <p style="font-size:12px;margin-bottom:10px;">Runs the full 7-phase review pipeline against a local fixture diff — no webhook, no smee.io, no tunnel. Just Azure OpenAI. Used for live demos on stage.</p>
+        <div style="font-size:11px;color:var(--muted);">
+          Prints findings to terminal →<br>
+          same run appears in dashboard
+        </div>
+      </div>
+      <div class="skill-card">
+        <div class="skill-name">/onboard</div>
+        <p style="font-size:12px;margin-bottom:10px;">Guided 8-step setup walk: prerequisites → PAT → smee.io → webhook → .env validation → Docker stack → relay → repo registration. Detects what's already done.</p>
+        <div style="font-size:11px;color:var(--muted);">
+          OS-aware · 4 check scripts<br>
+          never displays secret values
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 8. PR Review Output -->
+  <div class="slide" id="s8">
+    <div class="kicker">Review Output Format</div>
+    <h2>What gets posted to GitHub</h2>
+    <div class="divider"></div>
+    <div class="row" style="max-width:900px;">
+      <div class="card" style="flex:1.2;">
+        <h3>PR comment structure</h3>
+        <div class="code" style="margin-top:10px;font-size:11px;line-height:2;">
+          <span class="g">## Automated PR Review</span><br>
+          <span class="m">risk: medium · overall severity: minor</span><br><br>
+          <span class="g">### What changed</span><br>
+          <span class="m">This PR introduces a sequential review</span><br>
+          <span class="m">queue and per-repo graph onboarding.</span><br>
+          <span class="m">• Added review_queue_worker() in queue_worker.py</span><br>
+          <span class="m">• Modified ReviewRun in models.py</span><br>
+          <span class="m">• Added POST /{id}/chat endpoint in repos.py</span><br><br>
+          <span class="g">### Issues found</span><br>
+          🔴 <span class="m">security/major — file.py:42 (inline)</span><br>
+          🟡 <span class="m">logging/minor — utils.py:18 (inline)</span><br><br>
+          ▶ <span class="m">Blast-radius warnings (49 items)</span>
+        </div>
+      </div>
+      <div style="flex:1;display:flex;flex-direction:column;gap:12px;">
+        <div class="card">
+          <h3>Also includes</h3>
+          <ul class="check">
+            <li><span class="ico">✦</span>Inline comments anchored to exact diff lines</li>
+            <li><span class="ico">✦</span>Stable fingerprints for re-review tracking</li>
+            <li><span class="ico">✦</span>Suggested PR description (ready to paste)</li>
+            <li><span class="ico">✦</span>Per-finding severity icons 🔴🟠🟡⚪</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>What gets filtered out</h3>
+          <p style="font-size:12px;">Findings that cite files not in the diff, hedged with "may/could/might" without a concrete trace, or scored below the critic confidence threshold (0.7) — never published.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 9. AI Usage -->
+  <div class="slide" id="s9">
+    <div class="kicker">AI Usage</div>
+    <h2>How we built it with Claude Code</h2>
+    <div class="divider"></div>
+    <div class="stat-row" style="max-width:900px;margin-bottom:24px;">
+      <div class="stat"><div class="num">~90%</div><div class="lbl">Code AI-written</div></div>
+      <div class="stat"><div class="num">3</div><div class="lbl">Custom Skills</div></div>
+      <div class="stat"><div class="num">10</div><div class="lbl">Bugs caught & fixed</div></div>
+      <div class="stat"><div class="num">48</div><div class="lbl">Tests passing</div></div>
+    </div>
+    <div class="row" style="max-width:900px;">
+      <div class="card" style="flex:1;">
+        <h3>Human decisions (not AI defaults)</h3>
+        <ul class="check">
+          <li><span class="ico">✦</span>smee.io over ngrok after a real routing bug</li>
+          <li><span class="ico">✦</span>litellm over direct Azure client for flexibility</li>
+          <li><span class="ico">✦</span>asyncio.Queue for sequential review ordering</li>
+          <li><span class="ico">✦</span>graph traversal over RAG/embeddings</li>
+        </ul>
+      </div>
+      <div class="card" style="flex:1;">
+        <h3>/code-review pass (high effort)</h3>
+        <p style="font-size:13px;">8 parallel finder agents + independent verifiers → 16 candidates → 10 real bugs fixed. Test suite grew from 39 → 48 tests as a direct result of that one pass.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 10. Scoring -->
+  <div class="slide" id="s10">
+    <div class="kicker">Workshop Scoring</div>
+    <h2>How we map to the rubric</h2>
+    <div class="divider"></div>
+    <div class="row" style="max-width:900px;">
+      <table style="flex:1;">
+        <tr><th>Area</th><th class="r">Marks</th><th>Our implementation</th></tr>
+        <tr><td>Working demo</td><td class="r">20</td><td style="font-size:12px;color:var(--muted);">Reviews real PRs, posts real GitHub comments</td></tr>
+        <tr><td>Agent / RAG</td><td class="r">20</td><td style="font-size:12px;color:var(--muted);">7-phase autonomous pipeline + two-step chatbot</td></tr>
+        <tr><td>Custom thinking</td><td class="r">15</td><td style="font-size:12px;color:var(--muted);">4-layer hallucination reduction + blast-radius graph</td></tr>
+        <tr><td>AI orchestration</td><td class="r">10</td><td style="font-size:12px;color:var(--muted);">Claude Code throughout; /code-review pass; plan mode</td></tr>
+        <tr><td>Custom Skills ×2</td><td class="r">10</td><td style="font-size:12px;color:var(--muted);"><strong style="color:var(--accent2);">3 skills</strong> — review-checklist, local-pipeline-demo, onboard</td></tr>
+        <tr><td>Git discipline</td><td class="r">5</td><td style="font-size:12px;color:var(--muted);">Conventional commits, readable history</td></tr>
+        <tr><td>Docker deployment</td><td class="r">10</td><td style="font-size:12px;color:var(--muted);">docker compose + nginx + named volumes</td></tr>
+        <tr><td>UI / branding</td><td class="r">5</td><td style="font-size:12px;color:var(--muted);">Sentinel PR dark theme, dashboard + graph + chat</td></tr>
+        <tr><td>README / docs</td><td class="r">5</td><td style="font-size:12px;color:var(--muted);">README, DESIGN, AI_USAGE, LIMITATIONS, REFERENCES, DEMO_SCRIPT</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- 11. Limitations & Next Steps -->
+  <div class="slide" id="s11">
+    <div class="kicker">Limitations & Next Steps</div>
+    <h2>Honest gaps — and the plan</h2>
+    <div class="divider"></div>
+    <div class="row" style="max-width:900px;">
+      <div class="card" style="flex:1;">
+        <h3 style="color:#f87171;">Known limitations</h3>
+        <ul class="check" style="margin-top:8px;">
+          <li><span class="ico" style="color:#f87171;">!</span>Python/JS/TS only — other languages get raw diff review, no call-graph context</li>
+          <li><span class="ico" style="color:#f87171;">!</span>One global critic threshold — no per-dimension calibration yet</li>
+          <li><span class="ico" style="color:#f87171;">!</span><strong style="color:#fca5a5;">No org-specific rules</strong> — general-purpose prompt; no knowledge of team conventions like "controllers must not call repos directly". A <code style="font-size:11px;">.pr-agent-rules.yml</code> in the repo root would fix this.</li>
+          <li><span class="ico" style="color:#f87171;">!</span><strong style="color:#fca5a5;">No learning from past reviews</strong> — every review starts from zero. Findings the team dismissed will be repeated; no signal to improve precision over time.</li>
+          <li><span class="ico" style="color:#f87171;">!</span>No dashboard auth · Chatbot degrades on very large repos</li>
+        </ul>
+      </div>
+      <div class="card" style="flex:1;">
+        <h3 style="color:#34d399;">Next steps</h3>
+        <ul class="check" style="margin-top:8px;">
+          <li><span class="ico">→</span><strong>Week 1:</strong> Go + Java grammars; <code style="font-size:11px;">.pr-agent-rules.yml</code> support; per-dimension thresholds</li>
+          <li><span class="ico">→</span><strong>Week 2:</strong> Dashboard auth; GitHub App auth; multi-turn chatbot memory</li>
+          <li><span class="ico">→</span><strong>Feedback loop:</strong> thumbs-up/down on findings → tune critic threshold from real reviewer signal, not a fixed cutoff</li>
+          <li><span class="ico">→</span><strong>Large repo efficiency:</strong> incremental graph updates (re-parse only changed files); graph-size–aware context budget; eval dataset to measure precision + recall per dimension</li>
+        </ul>
+      </div>
+    </div>
+    <div style="margin-top:20px;text-align:center;color:var(--muted);font-size:14px;">
+      Reviews real PRs today · Posts real GitHub comments · Validated against a live repo
+    </div>
+  </div>
+
+</div>
+
+<nav>
+  <button class="nav-btn" onclick="prev()">← Prev</button>
+  <div id="dots"></div>
+  <span class="slide-num" id="slidenum">1 / 11</span>
+  <button class="nav-btn" onclick="next()">Next →</button>
+</nav>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const total = slides.length;
+  let cur = 0;
+
+  // Build dots
+  const dotsEl = document.getElementById('dots');
+  slides.forEach((_, i) => {
+    const d = document.createElement('div');
+    d.className = 'dot' + (i === 0 ? ' active' : '');
+    d.onclick = () => go(i);
+    dotsEl.appendChild(d);
+  });
+
+  function go(idx) {
+    slides[cur].classList.remove('active');
+    dotsEl.children[cur].classList.remove('active');
+    cur = (idx + total) % total;
+    slides[cur].classList.add('active');
+    dotsEl.children[cur].classList.add('active');
+    document.getElementById('slidenum').textContent = (cur + 1) + ' / ' + total;
+  }
+
+  function next() { go(cur + 1); }
+  function prev() { go(cur - 1); }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); next(); }
+    if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); prev(); }
+  });
+</script>

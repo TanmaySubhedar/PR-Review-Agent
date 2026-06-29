@@ -162,7 +162,9 @@ must be accessible with the single configured token.
 coverage; add per-dimension critic confidence thresholds (security findings
 should have a different bar than maintainability ones) calibrated from the
 eval dataset; add retry/idempotency at the phase level so a transient LLM
-failure doesn't fail the entire run.
+failure doesn't fail the entire run; implement `.pr-agent-rules.yml` support
+so teams can inject organisation-specific architectural rules into the review
+prompt.
 
 **Week 2:** a multi-repo dashboard view showing risk trends across all
 registered repos; basic authentication on the dashboard before running this
@@ -170,3 +172,15 @@ against anything beyond a demo/internal repo; swap the PAT for GitHub App
 installation auth (no personal token tied to one account); add the chatbot's
 conversation history to the graph-index context so follow-up questions
 maintain coherence across turns.
+
+**Rigorous testing and feedback loop:** build an eval dataset of real PRs
+with human-labelled findings (valid / noise / won't fix) and run it against
+every prompt change to measure precision and recall per dimension. Wire a
+thumbs-up/down on each finding in the dashboard back to the database so the
+critic confidence threshold and hedge-word rules can be tuned from actual
+reviewer signal rather than a fixed global cutoff. For large codebase
+efficiency, profile the Tree-sitter parse and graph-build phases on repos
+with 5 000+ files, introduce incremental graph updates (re-parse only changed
+files rather than the whole repo on every PR), and add a graph-size–aware
+context-selection budget so the review agent always gets the highest-signal
+files even on large monorepos.

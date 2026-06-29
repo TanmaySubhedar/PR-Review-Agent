@@ -112,6 +112,27 @@ a fix, and never resolves merge conflicts. See `DESIGN.md` for the reasoning
 (auto-applying an LLM-generated fix without a human in the loop is a
 meaningfully higher-risk feature class than reviewing).
 
+## No organisation-specific rules
+
+The reviewer uses a general-purpose prompt with no knowledge of team
+conventions — e.g. "controllers must not call repositories directly" or
+"all errors must raise `AppException`". Every team has implicit architectural
+rules that the agent cannot know about and will never enforce. A
+`.pr-agent-rules.yml` file fetched from the repo root on each run would
+allow teams to inject their own rules directly into the review prompt,
+making findings relevant to their specific conventions rather than generic
+best practices.
+
+## No learning from past reviews
+
+Every review starts from zero. There is no memory of which past findings
+were accepted, acted on, or consciously dismissed by the team. The agent
+will repeat findings the team has already decided to live with, and has no
+signal to improve its precision over time. A feedback loop — where reviewers
+mark findings as "valid / noise / won't fix" — would let the critic threshold
+and prompt be tuned per-dimension based on real team signal rather than a
+fixed global confidence cutoff.
+
 ## Single GITHUB_TOKEN for all repos
 
 All repos registered in the system must be accessible with the single
