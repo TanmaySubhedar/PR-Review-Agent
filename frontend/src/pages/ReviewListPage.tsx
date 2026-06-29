@@ -174,19 +174,20 @@ function StatPill({ label, value, color }: { label: string; value: number; color
 export function ReviewListPage() {
   const [reviews, setReviews] = useState<ReviewRun[]>([]);
   const [error, setError]     = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
-    const load = async () => {
+    const load = async (initial = false) => {
       try {
         const data = await listReviews();
-        if (!cancelled) setReviews(data);
+        if (!cancelled) { setReviews(data); if (initial) setLoading(false); }
       } catch (e) {
-        if (!cancelled) setError((e as Error).message);
+        if (!cancelled) { setError((e as Error).message); if (initial) setLoading(false); }
       }
     };
-    load();
-    const t = setInterval(load, 3000);
+    load(true);
+    const t = setInterval(() => load(false), 3000);
     return () => { cancelled = true; clearInterval(t); };
   }, []);
 
@@ -216,7 +217,17 @@ export function ReviewListPage() {
       )}
 
       {/* Grid */}
-      {reviews.length === 0 && !error ? (
+      {loading ? (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 14 }}>
+          {[1, 2, 3].map(i => (
+            <div key={i} style={{
+              background: colors.surface, border: `1px solid ${colors.border}`,
+              borderRadius: 14, padding: 20, height: 120,
+              opacity: 0.5, animation: "pulse 1.5s ease-in-out infinite",
+            }} />
+          ))}
+        </div>
+      ) : reviews.length === 0 && !error ? (
         <div style={{ textAlign: "center", padding: "80px 24px" }}>
           <div style={{ fontSize: 40, marginBottom: 12 }}>⬡</div>
           <p style={{ color: colors.text, fontWeight: 600, marginBottom: 8 }}>No reviews yet</p>
