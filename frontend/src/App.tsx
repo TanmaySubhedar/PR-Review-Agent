@@ -76,7 +76,7 @@ function NavBar({ onOpenChat }: { onOpenChat: () => void }) {
         onClick={onOpenChat}
         style={{
           display: "flex", alignItems: "center", gap: 8,
-          background: `linear-gradient(135deg, ${colors.accent}22, #8b5cf622)`,
+          background: `linear-gradient(135deg, ${colors.accent}22, #C301B122)`,
           border: `1px solid ${colors.accent}40`,
           borderRadius: 8, padding: "7px 14px",
           color: colors.text, fontSize: 13, fontWeight: 600, cursor: "pointer",
@@ -84,12 +84,12 @@ function NavBar({ onOpenChat }: { onOpenChat: () => void }) {
         }}
         onMouseEnter={e => {
           const el = e.currentTarget as HTMLElement;
-          el.style.background = `linear-gradient(135deg, ${colors.accent}33, #8b5cf633)`;
+          el.style.background = `linear-gradient(135deg, ${colors.accent}33, #C301B133)`;
           el.style.borderColor = `${colors.accent}80`;
         }}
         onMouseLeave={e => {
           const el = e.currentTarget as HTMLElement;
-          el.style.background = `linear-gradient(135deg, ${colors.accent}22, #8b5cf622)`;
+          el.style.background = `linear-gradient(135deg, ${colors.accent}22, #C301B122)`;
           el.style.borderColor = `${colors.accent}40`;
         }}
       >

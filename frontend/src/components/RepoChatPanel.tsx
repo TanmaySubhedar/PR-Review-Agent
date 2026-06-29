@@ -57,7 +57,7 @@ function Message({ msg, isLast }: { msg: ChatMessage; isLast: boolean }) {
       {!isUser && (
         <div style={{
           width: 26, height: 26, borderRadius: "50%",
-          background: "linear-gradient(135deg, #10b981, #3b82f6)",
+          background: "linear-gradient(135deg, #C301B1, #4FB6FF)",
           display: "flex", alignItems: "center", justifyContent: "center",
           fontSize: 12, fontWeight: 700, color: "#fff",
           marginRight: 8, flexShrink: 0, marginTop: 2,
@@ -88,7 +88,7 @@ function TypingIndicator() {
     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
       <div style={{
         width: 26, height: 26, borderRadius: "50%",
-        background: "linear-gradient(135deg, #10b981, #3b82f6)",
+        background: "linear-gradient(135deg, #C301B1, #4FB6FF)",
         display: "flex", alignItems: "center", justifyContent: "center",
         fontSize: 12, fontWeight: 700, color: "#fff", flexShrink: 0,
       }}>⬡</div>
@@ -202,7 +202,7 @@ export function RepoChatPanel({ repoId, repoName, onClose, messages, onMessages,
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <div style={{
               width: 28, height: 28, borderRadius: "50%",
-              background: "linear-gradient(135deg, #10b981, #3b82f6)",
+              background: "linear-gradient(135deg, #C301B1, #4FB6FF)",
               display: "flex", alignItems: "center", justifyContent: "center",
               fontSize: 14, fontWeight: 800, color: "#fff",
             }}>⬡</div>
@@ -211,7 +211,7 @@ export function RepoChatPanel({ repoId, repoName, onClose, messages, onMessages,
           <div style={{ marginTop: 4 }}>
             <span style={{
               fontSize: 11, padding: "2px 8px", borderRadius: 20,
-              background: "rgba(16,185,129,0.15)", color: "#10b981",
+              background: "rgba(79,182,255,0.15)", color: "#4FB6FF",
               fontWeight: 600, fontFamily: "monospace",
             }}>
               {repoName}
@@ -252,7 +252,7 @@ export function RepoChatPanel({ repoId, repoName, onClose, messages, onMessages,
                     color: colors.text, fontSize: 12, cursor: "pointer",
                     textAlign: "left", transition: "border-color 0.15s",
                   }}
-                  onMouseEnter={e => { (e.target as HTMLElement).style.borderColor = "#10b981"; }}
+                  onMouseEnter={e => { (e.target as HTMLElement).style.borderColor = "#C301B1"; }}
                   onMouseLeave={e => { (e.target as HTMLElement).style.borderColor = colors.border; }}
                 >
                   {s}
@@ -282,7 +282,7 @@ export function RepoChatPanel({ repoId, repoName, onClose, messages, onMessages,
           borderRadius: 12, padding: "8px 12px",
           transition: "border-color 0.2s",
         }}
-          onFocus={e => { (e.currentTarget as HTMLElement).style.borderColor = "#10b981"; }}
+          onFocus={e => { (e.currentTarget as HTMLElement).style.borderColor = "#C301B1"; }}
           onBlur={e => { (e.currentTarget as HTMLElement).style.borderColor = colors.border; }}
         >
           <textarea
@@ -304,7 +304,7 @@ export function RepoChatPanel({ repoId, repoName, onClose, messages, onMessages,
             onClick={() => send(input)}
             disabled={!input.trim() || loading}
             style={{
-              background: input.trim() && !loading ? "#10b981" : colors.surface3,
+              background: input.trim() && !loading ? "#C301B1" : colors.surface3,
               border: "none", borderRadius: 8, cursor: input.trim() && !loading ? "pointer" : "default",
               color: "#fff", padding: "6px 12px", fontSize: 13, fontWeight: 600,
               transition: "background 0.15s", flexShrink: 0,

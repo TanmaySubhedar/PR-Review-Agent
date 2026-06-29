@@ -113,7 +113,7 @@ export function ReviewDetailPage() {
             onClick={() => openChat(run)}
             style={{
               display: "flex", alignItems: "center", gap: 8,
-              background: `linear-gradient(135deg, ${colors.accent}, #8b5cf6)`,
+              background: `linear-gradient(135deg, ${colors.accent}, #4FB6FF)`,
               border: "none", borderRadius: 10, padding: "10px 16px",
               color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer",
               boxShadow: `0 4px 16px ${colors.accentDim}`,

@@ -97,7 +97,7 @@ const NODE_TYPES = { repo: RepoNode };
 function toFlowGraph(data: GraphResponse): { nodes: Node[]; edges: Edge[] } {
   const edgeColor: Record<string, string> = {
     imports: colors.accent,
-    calls: "#8b5cf6",
+    calls: "#C301B1",
     contains: colors.muted,
   };
 
@@ -120,7 +120,7 @@ function toFlowGraph(data: GraphResponse): { nodes: Node[]; edges: Edge[] } {
       position: { x: 0, y: 0 },
       style: {
         background: n.kind === "module" ? colors.surface2 : "#1e1b2e",
-        border: `1px solid ${n.kind === "module" ? `${colors.accent}60` : "#8b5cf660"}`,
+        border: `1px solid ${n.kind === "module" ? `${colors.accent}60` : "#4FB6FF60"}`,
         borderRadius: 8,
         padding: "6px 12px",
         width: NODE_W,
@@ -269,15 +269,15 @@ export function RepoGraphPage() {
             onClick={openChat}
             style={{
               display: "flex", alignItems: "center", gap: 6,
-              background: chatOpen ? "rgba(16,185,129,0.2)" : "rgba(16,185,129,0.1)",
-              border: `1px solid ${chatOpen ? "#10b981" : "rgba(16,185,129,0.3)"}`,
+              background: chatOpen ? "rgba(195,1,177,0.2)" : "rgba(195,1,177,0.1)",
+              border: `1px solid ${chatOpen ? "#C301B1" : "rgba(195,1,177,0.3)"}`,
               borderRadius: 8, padding: "6px 14px",
-              color: "#10b981", fontSize: 12, fontWeight: 600, cursor: "pointer",
+              color: "#e040fb", fontSize: 12, fontWeight: 600, cursor: "pointer",
               transition: "all 0.15s",
             }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(16,185,129,0.2)"; }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(195,1,177,0.2)"; }}
             onMouseLeave={e => {
-              if (!chatOpen) (e.currentTarget as HTMLElement).style.background = "rgba(16,185,129,0.1)";
+              if (!chatOpen) (e.currentTarget as HTMLElement).style.background = "rgba(195,1,177,0.1)";
             }}
           >
             ⬡ Ask AI
@@ -292,7 +292,7 @@ export function RepoGraphPage() {
           borderBottom: `1px solid ${colors.border}`, background: colors.surface,
           display: "flex", alignItems: "center", gap: 6,
         }}>
-          <span style={{ color: "#10b981" }}>⬡</span>
+          <span style={{ color: "#C301B1" }}>⬡</span>
           Click any node to ask Repo AI about that file
         </div>
       )}
@@ -332,7 +332,7 @@ export function RepoGraphPage() {
             <Controls style={{ background: colors.surface, border: `1px solid ${colors.border}` }} />
             <MiniMap
               style={{ background: colors.surface2 }}
-              nodeColor={n => (n.data?.kind === "module" ? `${colors.accent}80` : "#8b5cf680")}
+              nodeColor={n => (n.data?.kind === "module" ? `${colors.accent}80` : "#4FB6FF80")}
             />
           </ReactFlow>
         )}

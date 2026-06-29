@@ -5,24 +5,24 @@
 }
 
 :root {
-  --bg: #050810;
-  --surface: #0d1117;
-  --surface-2: #161b22;
-  --surface-3: #21262d;
-  --border: rgba(148, 163, 184, 0.1);
-  --border-strong: rgba(148, 163, 184, 0.2);
-  --text: #e2e8f0;
-  --text-muted: #64748b;
-  --accent: #3b82f6;
-  --accent-dim: rgba(59, 130, 246, 0.15);
-  --low: #10b981;
-  --low-dim: rgba(16, 185, 129, 0.15);
+  --bg: #08091a;
+  --surface: #0d0b28;
+  --surface-2: #12103a;
+  --surface-3: #1a1650;
+  --border: rgba(79, 182, 255, 0.1);
+  --border-strong: rgba(79, 182, 255, 0.2);
+  --text: #f0f2ff;
+  --text-muted: #7a7ea8;
+  --accent: #C301B1;
+  --accent-dim: rgba(195, 1, 177, 0.15);
+  --low: #4FB6FF;
+  --low-dim: rgba(79, 182, 255, 0.15);
   --medium: #f59e0b;
   --medium-dim: rgba(245, 158, 11, 0.15);
   --high: #ef4444;
   --high-dim: rgba(239, 68, 68, 0.15);
-  --purple: #8b5cf6;
-  --purple-dim: rgba(139, 92, 246, 0.15);
+  --purple: #C301B1;
+  --purple-dim: rgba(195, 1, 177, 0.15);
 }
 
 html, body, #root {
@@ -32,11 +32,11 @@ html, body, #root {
 body {
   background: var(--bg);
   background-image:
-    linear-gradient(rgba(148,163,184,0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(148,163,184,0.03) 1px, transparent 1px);
+    linear-gradient(rgba(195,1,177,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(79,182,255,0.03) 1px, transparent 1px);
   background-size: 40px 40px;
   color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  font-family: Helvetica, Arial, "Helvetica Neue", sans-serif;
   font-size: 14px;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
@@ -72,8 +72,8 @@ a:hover { color: var(--accent); }
 }
 
 @keyframes pulseRing {
-  0%   { box-shadow: 0 0 0 0 rgba(139,92,246,0.5); }
-  100% { box-shadow: 0 0 0 10px rgba(139,92,246,0); }
+  0%   { box-shadow: 0 0 0 0 rgba(195,1,177,0.5); }
+  100% { box-shadow: 0 0 0 10px rgba(195,1,177,0); }
 }
 
 @keyframes spin {

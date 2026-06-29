@@ -65,7 +65,7 @@ function Message({ msg, isLast }: { msg: ChatMessage; isLast: boolean }) {
       {!isUser && (
         <div style={{
           width: 26, height: 26, borderRadius: "50%",
-          background: `linear-gradient(135deg, ${colors.accent}, #8b5cf6)`,
+          background: `linear-gradient(135deg, ${colors.accent}, #4FB6FF)`,
           display: "flex", alignItems: "center", justifyContent: "center",
           fontSize: 12, fontWeight: 700, color: "#fff",
           marginRight: 8, flexShrink: 0, marginTop: 2,
@@ -96,7 +96,7 @@ function TypingIndicator() {
     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
       <div style={{
         width: 26, height: 26, borderRadius: "50%",
-        background: `linear-gradient(135deg, ${colors.accent}, #8b5cf6)`,
+        background: `linear-gradient(135deg, ${colors.accent}, #4FB6FF)`,
         display: "flex", alignItems: "center", justifyContent: "center",
         fontSize: 12, fontWeight: 700, color: "#fff", flexShrink: 0,
       }}>S</div>
@@ -200,7 +200,7 @@ export function ChatPanel({ onClose, reviewRun, messages, onMessages }: Props) {
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <div style={{
               width: 28, height: 28, borderRadius: "50%",
-              background: `linear-gradient(135deg, ${colors.accent}, #8b5cf6)`,
+              background: `linear-gradient(135deg, ${colors.accent}, #4FB6FF)`,
               display: "flex", alignItems: "center", justifyContent: "center",
               fontSize: 14, fontWeight: 800, color: "#fff",
             }}>S</div>
