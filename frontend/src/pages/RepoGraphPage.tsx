@@ -3,10 +3,13 @@ import {
   Background,
   BackgroundVariant,
   Controls,
+  Handle,
   MiniMap,
+  Position,
   ReactFlow,
   type Edge,
   type Node,
+  type NodeProps,
 } from "@xyflow/react";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
@@ -62,6 +65,33 @@ function applyDagreLayout(nodes: Node[], edges: Edge[]): Node[] {
   return [...laidOutConnected, ...laidOutIsolated];
 }
 
+// ── Custom node with hover tooltip ────────────────────────────────────────────
+
+function RepoNode({ data }: NodeProps) {
+  const isModule = data.kind === "module";
+  return (
+    <>
+      <Handle type="target" position={Position.Top}
+        style={{ opacity: 0, pointerEvents: "none", width: 4, height: 4 }} />
+      <div
+        title={String(data.fullLabel)}
+        style={{
+          fontSize: 12, fontFamily: "monospace",
+          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+          color: isModule ? colors.text : "#c4b5fd",
+          maxWidth: NODE_W - 24,
+        }}
+      >
+        {String(data.label)}
+      </div>
+      <Handle type="source" position={Position.Bottom}
+        style={{ opacity: 0, pointerEvents: "none", width: 4, height: 4 }} />
+    </>
+  );
+}
+
+const NODE_TYPES = { repo: RepoNode };
+
 // ── API → React Flow conversion ───────────────────────────────────────────────
 
 function toFlowGraph(data: GraphResponse): { nodes: Node[]; edges: Edge[] } {
@@ -71,29 +101,31 @@ function toFlowGraph(data: GraphResponse): { nodes: Node[]; edges: Edge[] } {
     contains: colors.muted,
   };
 
-  const rawNodes: Node[] = data.nodes.map(n => ({
-    id: n.id,
-    data: {
-      label: n.file ? n.file.split("/").pop() ?? n.id : (n.name ?? n.id),
-      fullLabel: n.file ?? n.name ?? n.id,
-      kind: n.kind,
-      name: n.name,
-    },
-    position: { x: 0, y: 0 },
-    style: {
-      background: n.kind === "module" ? colors.surface2 : "#1e1b2e",
-      border: `1px solid ${n.kind === "module" ? `${colors.accent}60` : "#8b5cf660"}`,
-      borderRadius: 8,
-      color: colors.text,
-      fontSize: 12,
-      fontFamily: "monospace",
-      padding: "6px 12px",
-      width: NODE_W,
-      overflow: "hidden",
-      textOverflow: "ellipsis",
-      whiteSpace: "nowrap",
-    },
-  }));
+  const rawNodes: Node[] = data.nodes.map(n => {
+    // Module nodes: show just the filename.  Symbol nodes: show the symbol name.
+    const label = n.kind === "module"
+      ? (n.file?.split("/").pop() ?? n.id)
+      : (n.name ?? n.file?.split("/").pop() ?? n.id);
+    // Full tooltip: file path for modules, "file → symbol" for symbols.
+    const fullLabel = n.kind === "module"
+      ? (n.file ?? n.id)
+      : (n.name && n.file ? `${n.file} → ${n.name}` : n.id);
+
+    return {
+      id: n.id,
+      type: "repo",
+      data: { label, fullLabel, kind: n.kind, name: n.name, file: n.file },
+      position: { x: 0, y: 0 },
+      style: {
+        background: n.kind === "module" ? colors.surface2 : "#1e1b2e",
+        border: `1px solid ${n.kind === "module" ? `${colors.accent}60` : "#8b5cf660"}`,
+        borderRadius: 8,
+        padding: "6px 12px",
+        width: NODE_W,
+        cursor: "pointer",
+      },
+    };
+  });
 
   const rawEdges: Edge[] = data.links.map((l, i) => ({
     id: `e-${i}`,
@@ -164,7 +196,7 @@ export function RepoGraphPage() {
     const isModule = node.data.kind === "module";
     const question = isModule
       ? `Explain the ${node.data.fullLabel} file`
-      : `Explain the ${String(node.data.name)} function`;
+      : `What does the ${String(node.data.name)} function do in ${String(node.data.file)}?`;
     setChatInput(question);
     setChatOpen(true);
   }, []);
@@ -287,6 +319,7 @@ export function RepoGraphPage() {
           <ReactFlow
             nodes={highlightedNodes}
             edges={edges}
+            nodeTypes={NODE_TYPES}
             onNodeClick={onNodeClick}
             fitView
             minZoom={0.05}
