@@ -153,6 +153,10 @@ function RegisterForm({ onRegistered }: { onRegistered: () => void }) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    if (!/^[^/\s]+\/[^/\s]+$/.test(fullName.trim())) {
+      setError("Must be in owner/repo format — e.g. TanmaySubhedar/PR-Review-Agent");
+      return;
+    }
     setLoading(true);
     try {
       await registerRepo({ full_name: fullName.trim(), clone_url: cloneUrl.trim(), default_branch: branch.trim() || "main" });
@@ -184,7 +188,7 @@ function RegisterForm({ onRegistered }: { onRegistered: () => void }) {
         }}>
           <div>
             <label style={labelStyle}>Repository (owner/name)</label>
-            <input style={inputStyle} placeholder="octocat/Hello-World" value={fullName} onChange={e => setFullName(e.target.value)} required />
+            <input style={inputStyle} placeholder="owner/repo-name  (e.g. TanmaySubhedar/PR-Review-Agent)" value={fullName} onChange={e => setFullName(e.target.value)} required />
           </div>
           <div>
             <label style={labelStyle}>Clone URL</label>

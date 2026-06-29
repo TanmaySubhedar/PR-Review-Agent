@@ -42,15 +42,22 @@ def build_summary_body(
     lines = [f"## Automated PR Review (risk: {diff_analysis.risk_level}, overall severity: {overall_severity})", ""]
 
     if change_summary:
+        lines.append("### What changed")
         lines.append(change_summary)
         lines.append("")
 
-    _MAX_RISK_AREAS = 10
+    _MAX_RISK_AREAS = 5
     if repository_context.risk_areas:
         shown = repository_context.risk_areas[:_MAX_RISK_AREAS]
         remainder = len(repository_context.risk_areas) - len(shown)
-        lines.append("**Risk areas:**")
+        lines.append("<details>")
+        lines.append("<summary><strong>Blast-radius warnings</strong></summary>")
+        lines.append("")
         lines.extend(f"- {r}" for r in shown)
+        if remainder:
+            lines.append(f"- …and {remainder} more")
+        lines.append("")
+        lines.append("</details>")
         lines.append("")
 
     downgraded = [sf for sf in scored_findings if sf.downgrade_to_summary]
