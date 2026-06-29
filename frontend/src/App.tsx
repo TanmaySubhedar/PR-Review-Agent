@@ -36,13 +36,7 @@ function NavBar({ onOpenChat }: { onOpenChat: () => void }) {
     }}>
       {/* Brand */}
       <Link to="/" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none" }}>
-        <div style={{
-          width: 28, height: 28, borderRadius: 7,
-          background: `linear-gradient(135deg, ${colors.accent}, #8b5cf6)`,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: 13, fontWeight: 900, color: "#fff",
-          boxShadow: `0 0 12px ${colors.accentDim}`,
-        }}>S</div>
+        <img src="/logo.png" alt="AutomatonsX" style={{ height: 32, width: "auto" }} />
         <span style={{ fontSize: 16, fontWeight: 800, color: colors.text, letterSpacing: "-0.01em" }}>
           {brand.name}
         </span>
