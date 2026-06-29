@@ -1,17 +1,17 @@
 ﻿<title>Sentinel PR — Demo Presentation</title>
 <style>
   :root {
-    --bg: #0a0b0f;
-    --surface: #111218;
-    --surface2: #181920;
-    --border: #2a2d3a;
-    --accent: #8b5cf6;
-    --accent2: #10b981;
-    --text: #e8eaf0;
-    --muted: #6b7280;
+    --bg: #08091a;
+    --surface: #0d0b28;
+    --surface2: #12103a;
+    --border: #261e5c;
+    --accent: #C301B1;
+    --accent2: #4FB6FF;
+    --text: #f0f2ff;
+    --muted: #7a7ea8;
     --risk-high: #ef4444;
     --risk-medium: #f59e0b;
-    --risk-low: #10b981;
+    --risk-low: #4FB6FF;
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -19,7 +19,7 @@
   body {
     background: var(--bg);
     color: var(--text);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
+    font-family: Helvetica, Arial, "Helvetica Neue", sans-serif;
     height: 100vh;
     overflow: hidden;
     user-select: none;
@@ -98,7 +98,7 @@
     font-weight: 800;
     letter-spacing: -1.5px;
     line-height: 1.1;
-    background: linear-gradient(135deg, #e8eaf0 30%, #8b5cf6 100%);
+    background: linear-gradient(135deg, #ffffff 30%, #C301B1 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -131,8 +131,8 @@
     border-radius: 14px;
     padding: 22px 24px;
   }
-  .card.accent-border { border-color: rgba(139,92,246,0.4); }
-  .card.green-border  { border-color: rgba(16,185,129,0.4); }
+  .card.accent-border { border-color: rgba(195,1,177,0.4); }
+  .card.green-border  { border-color: rgba(79,182,255,0.4); }
   .card h3 { font-size: 15px; font-weight: 700; margin-bottom: 10px; color: var(--text); }
   .card p  { font-size: 13px; }
 
@@ -156,8 +156,8 @@
     white-space: nowrap;
     position: relative;
   }
-  .phase.llm { border-color: rgba(139,92,246,0.5); color: #a78bfa; }
-  .phase.det { border-color: rgba(16,185,129,0.5); color: #34d399; }
+  .phase.llm { border-color: rgba(195,1,177,0.5); color: #e860f0; }
+  .phase.det { border-color: rgba(79,182,255,0.5); color: #4FB6FF; }
   .arrow {
     color: var(--muted);
     font-size: 18px;
@@ -192,8 +192,8 @@
     letter-spacing: 0.05em;
     text-transform: uppercase;
   }
-  .badge-purple { background: rgba(139,92,246,0.15); border: 1px solid rgba(139,92,246,0.4); color: #a78bfa; }
-  .badge-green  { background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.4); color: #34d399; }
+  .badge-purple { background: rgba(195,1,177,0.15); border: 1px solid rgba(195,1,177,0.4); color: #e860f0; }
+  .badge-green  { background: rgba(79,182,255,0.15); border: 1px solid rgba(79,182,255,0.4); color: #4FB6FF; }
   .badge-red    { background: rgba(239,68,68,0.15);  border: 1px solid rgba(239,68,68,0.4);  color: #f87171; }
   .badge-amber  { background: rgba(245,158,11,0.15); border: 1px solid rgba(245,158,11,0.4); color: #fbbf24; }
 
@@ -225,11 +225,11 @@
     padding: 16px 20px;
     font-family: monospace;
     font-size: 12px;
-    color: #c4b5fd;
+    color: #d899f5;
     line-height: 1.8;
     width: 100%;
   }
-  .code .g { color: #34d399; }
+  .code .g { color: #4FB6FF; }
   .code .m { color: var(--muted); }
 
   /* Big stat */
@@ -250,8 +250,8 @@
     position: fixed;
     inset: 0;
     background-image:
-      linear-gradient(rgba(139,92,246,0.03) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(139,92,246,0.03) 1px, transparent 1px);
+      linear-gradient(rgba(195,1,177,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(195,1,177,0.03) 1px, transparent 1px);
     background-size: 40px 40px;
     pointer-events: none;
     z-index: 0;
@@ -262,7 +262,7 @@
   .glow {
     position: absolute;
     width: 500px; height: 300px;
-    background: radial-gradient(ellipse, rgba(139,92,246,0.12) 0%, transparent 70%);
+    background: radial-gradient(ellipse, rgba(195,1,177,0.12) 0%, transparent 70%);
     top: 50%; left: 50%;
     transform: translate(-50%, -60%);
     pointer-events: none;
@@ -312,13 +312,13 @@
         </ul>
       </div>
       <div class="card green-border" style="flex:1;">
-        <h3 style="color:#34d399;">What Sentinel PR does</h3>
+        <h3 style="color:#4FB6FF;">What Sentinel PR does</h3>
         <ul class="check" style="margin-top:8px;">
-          <li><span class="ico" style="color:#34d399;">✓</span>Builds full call graph before the LLM sees the diff</li>
-          <li><span class="ico" style="color:#34d399;">✓</span>Finds all callers, callees, and tests for changed symbols</li>
-          <li><span class="ico" style="color:#34d399;">✓</span>Detects breaking signature changes with Tree-sitter</li>
-          <li><span class="ico" style="color:#34d399;">✓</span>Critiques every finding before publishing</li>
-          <li><span class="ico" style="color:#34d399;">✓</span>Posts structured review within seconds of PR open</li>
+          <li><span class="ico" style="color:#4FB6FF;">✓</span>Builds full call graph before the LLM sees the diff</li>
+          <li><span class="ico" style="color:#4FB6FF;">✓</span>Finds all callers, callees, and tests for changed symbols</li>
+          <li><span class="ico" style="color:#4FB6FF;">✓</span>Detects breaking signature changes with Tree-sitter</li>
+          <li><span class="ico" style="color:#4FB6FF;">✓</span>Critiques every finding before publishing</li>
+          <li><span class="ico" style="color:#4FB6FF;">✓</span>Posts structured review within seconds of PR open</li>
         </ul>
       </div>
     </div>
@@ -380,7 +380,7 @@
       </div>
       <div class="card" style="flex:1;">
         <h3>Sequential queue</h3>
-        <p style="font-size:13px;">PRs processed one at a time via <code style="color:#a78bfa;">asyncio.Queue</code> worker — no parallel pipeline executions, predictable resource usage. Queued PRs show "Queue #N" in the dashboard.</p>
+        <p style="font-size:13px;">PRs processed one at a time via <code style="color:#e860f0;">asyncio.Queue</code> worker — no parallel pipeline executions, predictable resource usage. Queued PRs show "Queue #N" in the dashboard.</p>
       </div>
     </div>
   </div>
@@ -473,7 +473,7 @@
       <div style="flex:1;display:flex;flex-direction:column;gap:14px;">
         <div class="card green-border">
           <h3>Why it matters</h3>
-          <p style="font-size:13px;">Without this skill, setup requires reading a multi-step README, generating a PAT, creating a smee channel, configuring a webhook, filling an .env, launching Docker, and registering a repo — in the right order, with the right values. With the skill: type <code style="color:#a78bfa;">/onboard</code> and follow the conversation.</p>
+          <p style="font-size:13px;">Without this skill, setup requires reading a multi-step README, generating a PAT, creating a smee channel, configuring a webhook, filling an .env, launching Docker, and registering a repo — in the right order, with the right values. With the skill: type <code style="color:#e860f0;">/onboard</code> and follow the conversation.</p>
         </div>
         <div class="card">
           <h3>Technical details</h3>
@@ -574,7 +574,7 @@
         </ul>
       </div>
       <div class="card" style="flex:1;">
-        <h3 style="color:#34d399;">Next steps</h3>
+        <h3 style="color:#4FB6FF;">Next steps</h3>
         <ul class="check" style="margin-top:8px;">
           <li><span class="ico">→</span><strong>Week 1:</strong> Go + Java grammars; <code style="font-size:11px;">.pr-agent-rules.yml</code> support; per-dimension thresholds</li>
           <li><span class="ico">→</span><strong>Week 2:</strong> Dashboard auth; GitHub App auth; multi-turn chatbot memory</li>
@@ -590,6 +590,8 @@
 
 </div>
 
+<div style="position:fixed;bottom:0;left:0;right:0;height:2px;background:linear-gradient(90deg,#C301B1,#4FB6FF);z-index:400;"></div>
+<div style="position:fixed;bottom:2px;right:20px;font-size:10px;color:#7a7ea8;letter-spacing:0.06em;z-index:300;padding-bottom:4px;">www.automatonsx.com</div>
 <nav>
   <button class="nav-btn" onclick="prev()">← Prev</button>
   <div id="dots"></div>
@@ -626,5 +628,25 @@
   document.addEventListener('keydown', e => {
     if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); next(); }
     if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); prev(); }
+  });
+
+  // Fixed logo badge — brand guideline: logo bottom-left on every slide
+  window.addEventListener('load', function () {
+    var logo = document.querySelector('.slide img[alt="AutomatonsX"]');
+    if (!logo) return;
+    var badge = document.createElement('div');
+    badge.id = 'ax-logo-badge';
+    badge.style.cssText = [
+      'position:fixed', 'bottom:70px', 'left:20px', 'z-index:300',
+      'background:rgba(255,255,255,0.94)', 'border-radius:8px',
+      'padding:4px 8px',
+      'box-shadow:0 2px 16px rgba(195,1,177,0.28)'
+    ].join(';');
+    var img = document.createElement('img');
+    img.src   = logo.src;
+    img.alt   = 'AutomatonsX';
+    img.style.cssText = 'height:26px;width:auto;display:block;';
+    badge.appendChild(img);
+    document.body.appendChild(badge);
   });
 </script>
