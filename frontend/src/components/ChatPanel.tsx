@@ -204,7 +204,7 @@ export function ChatPanel({ onClose, reviewRun, messages, onMessages }: Props) {
               display: "flex", alignItems: "center", justifyContent: "center",
               fontSize: 14, fontWeight: 800, color: "#fff",
             }}>S</div>
-            <span style={{ fontWeight: 700, fontSize: 15, color: colors.text }}>Sentinel AI</span>
+            <span style={{ fontWeight: 700, fontSize: 15, color: colors.text }}>Code Review Agent AI</span>
           </div>
           <div style={{ marginTop: 4, display: "flex", alignItems: "center", gap: 6 }}>
             <span style={{
