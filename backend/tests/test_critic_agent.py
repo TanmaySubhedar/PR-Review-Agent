@@ -207,3 +207,28 @@ async def test_score_finding_caps_hedged_severity_before_evidence_check(monkeypa
 
     assert result.finding.severity == "minor"
     assert result.publish is True
+
+
+@pytest.mark.parametrize("dimension", ["correctness", "security", "performance", "logging"])
+async def test_score_finding_gates_new_dimensions_identically_to_existing_ones(monkeypatch, dimension):
+    """critic_agent never branches on `dimension` - confirms security/performance/
+    logging findings flow through the exact same evidence-grounding and LLM-judgment
+    gates as the original four dimensions, with no critic code change required."""
+    async def fake_complete_structured(schema, system_prompt, user_prompt, **kwargs):
+        return CriticJudgment(respects_repo_context=True, actionable=True, confidence=0.9, rationale="ok")
+
+    monkeypatch.setattr(critic_agent, "complete_structured", fake_complete_structured)
+
+    finding = ReviewFinding(
+        file="auth/utils.py",
+        line=3,
+        dimension=dimension,
+        finding="Concrete grounded finding for this dimension",
+        evidence="if is_expired(payload): return None",
+        severity="major",
+    )
+
+    result = await critic_agent.score_finding(finding, _diff_analysis(), _context_package(), _repo_context())
+
+    assert result.critic.evidence_grounded is True
+    assert result.publish is True

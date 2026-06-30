@@ -20,8 +20,8 @@ SENSITIVE_PATH_KEYWORDS = (
     "session",
 )
 
-_HIGH_RISK_THRESHOLD = 5
-_MEDIUM_RISK_THRESHOLD = 3
+_HIGH_RISK_THRESHOLD = 7
+_MEDIUM_RISK_THRESHOLD = 4
 
 
 def _bucket_score(score: int) -> Literal["low", "medium", "high"]:
@@ -205,19 +205,26 @@ def analyze_diff(review_run_id: str, file_diffs: list[FileDiff]) -> DiffAnalysis
 
 
 def refine_risk_with_blast_radius(diff_analysis: DiffAnalysis, blast_radius: BlastRadius) -> DiffAnalysis:
-    """Upgrade risk_level once blast-radius data exists. This runs as a
-    second pass (after phase 3) because fan-in and test coverage are far
-    stronger risk signals than anything visible in the diff alone - a
-    one-line change to a function called from seven places with zero test
-    coverage is high risk even though the diff itself looks trivial.
+    """Upgrade risk_level once blast-radius data exists.
 
-    Adds directly to the diff-only `risk_score` (no bucket-then-unbucket
-    round trip) and re-buckets with the same `_bucket_score` the first pass
-    used, so the two passes can never disagree about thresholds."""
+    Key invariant: only MODIFIED/DELETED symbols drive fan-in risk.  A new
+    function that calls other new functions in the same PR looks like fan-in
+    from the graph's perspective, but carries no real cascade risk — nothing
+    pre-existing depends on it yet.  We exclude symbols whose change_type is
+    'added' from the fan-in calculation to avoid inflating risk for purely
+    additive PRs."""
     score = diff_analysis.risk_score
     factors: list[str] = list(diff_analysis.risk_factors)
 
-    max_fan_in = max((len(e.callers) for e in blast_radius.entries), default=0)
+    # only modified/deleted symbols can break existing callers
+    added_names = {cs.symbol_name for cs in diff_analysis.changed_symbols if cs.change_type == "added"}
+    existing_change_entries = [e for e in blast_radius.entries if e.symbol not in added_names]
+
+    # callers that are themselves newly added don't represent existing dependents
+    def _existing_callers(entry):
+        return [c for c in entry.callers if c.symbol_name not in added_names]
+
+    max_fan_in = max((len(_existing_callers(e)) for e in existing_change_entries), default=0)
     if max_fan_in >= 5:
         score += 3
     elif max_fan_in >= 2:
@@ -225,15 +232,18 @@ def refine_risk_with_blast_radius(diff_analysis: DiffAnalysis, blast_radius: Bla
     elif max_fan_in == 1:
         score += 1
 
-    untested_but_used = [e for e in blast_radius.entries if e.callers and not e.tests]
+    untested_but_used = [e for e in existing_change_entries if _existing_callers(e) and not e.tests]
     if untested_but_used:
-        score += 2
+        score += 1
         names = ", ".join(sorted({e.symbol for e in untested_but_used}))
-        factors.append(f"called by other code but has no test coverage: {names}")
+        factors.append(f"modified symbols with callers but no test coverage: {names}")
 
     if max_fan_in:
-        caller_names = sorted({c.symbol_name for e in blast_radius.entries for c in e.callers})
-        factors.append(f"blast radius: up to {max_fan_in} caller(s) ({', '.join(caller_names)})")
+        caller_names = sorted({c.symbol_name for e in existing_change_entries for c in _existing_callers(e)})
+        shown = caller_names[:5]
+        rest = len(caller_names) - len(shown)
+        suffix = f" …+{rest} more" if rest else ""
+        factors.append(f"blast radius: up to {max_fan_in} existing caller(s) ({', '.join(shown)}{suffix})")
 
     return diff_analysis.model_copy(
         update={"risk_level": _bucket_score(score), "risk_score": score, "risk_factors": factors}

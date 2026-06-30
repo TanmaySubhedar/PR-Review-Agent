@@ -1,3 +1,4 @@
+import hashlib
 import logging
 from datetime import datetime, timezone
 
@@ -14,19 +15,30 @@ from app.schemas.review_finding import ReviewFinding
 
 logger = logging.getLogger(__name__)
 
-# Bounds how many prior findings get dumped into the re-review prompt - without
-# this, a PR with many review iterations could accumulate an ever-growing
-# previous-findings block. Capped on confidence so the most credible findings
-# survive if a single run ever produced more than this.
+# Bounds how many prior findings get dumped into the re-review prompt.
 _MAX_PREVIOUS_FINDINGS = 15
+
+
+def _finding_fingerprint(file: str, dimension: str, finding_text: str) -> str:
+    """Stable 16-char identifier for a finding across re-reviews.
+
+    Excludes line number so the fingerprint survives line drift when
+    unrelated hunks shift the file. Two findings are the same logical
+    issue if they target the same file, dimension, and (normalized)
+    description — regardless of which line they land on after a rebase."""
+    canonical = f"{file}|{dimension}|{finding_text.lower().strip()}"
+    return hashlib.sha256(canonical.encode()).hexdigest()[:16]
 
 
 def _fetch_previous_findings(
     session: Session, repo_full_name: str, pr_number: int, exclude_run_id: str
-) -> list[ReviewFinding]:
-    """Published findings from the most recent prior completed run on this
-    same PR, so the review agent can compare against what it said last time
-    instead of treating every push as a brand-new review with no memory."""
+) -> tuple[list[ReviewFinding], list[str | None]]:
+    """Published findings from the most recent prior completed run on this PR.
+
+    Returns (findings, fingerprints) in parallel lists so the review agent
+    can reference each finding by its stable fingerprint ID instead of
+    matching by prose. fingerprints[i] is None for rows written before
+    the fingerprint column was added."""
     previous_run = session.exec(
         select(ReviewRun)
         .where(
@@ -39,7 +51,7 @@ def _fetch_previous_findings(
         .limit(1)
     ).first()
     if previous_run is None:
-        return []
+        return [], []
 
     rows = session.exec(
         select(Finding)
@@ -48,13 +60,15 @@ def _fetch_previous_findings(
         .limit(_MAX_PREVIOUS_FINDINGS)
     ).all()
 
-    previous_findings = []
+    previous_findings: list[ReviewFinding] = []
+    fingerprints: list[str | None] = []
     for row in rows:
         try:
             previous_findings.append(ReviewFinding.model_validate(row, from_attributes=True))
+            fingerprints.append(row.fingerprint)
         except Exception:
-            logger.warning("skipping unreadable previous finding %s for re-review comparison", row.id)
-    return previous_findings
+            logger.warning("skipping unreadable previous finding %s", row.id)
+    return previous_findings, fingerprints
 
 
 def _set_phase(session: Session, review_run_id: str, phase: str, status: str, detail: str | None = None) -> None:
@@ -89,12 +103,16 @@ async def execute_review_run(review_run_id: str, pr_event: PREvent) -> None:
         def on_phase(phase: str, status: str) -> None:
             _set_phase(session, review_run_id, phase, status)
 
+        run_tag = f"[{review_run_id[:8]}] [{pr_event.repo_full_name}#{pr_event.pr_number}]"
         try:
             run.status = "analyzing"
             session.add(run)
             session.commit()
+            logger.info("%s review started", run_tag)
 
             _set_phase(session, review_run_id, "ingestion", "running")
+            logger.info("%s [0/7] INGESTION starting — fetching PR details from GitHub", run_tag)
+            t0 = __import__("time").monotonic()
             changed_files, commits = github_client.fetch_pr_event_details(
                 pr_event.repo_full_name, pr_event.pr_number
             )
@@ -102,8 +120,10 @@ async def execute_review_run(review_run_id: str, pr_event: PREvent) -> None:
             pr_event.commits = commits
             file_diffs = github_client.fetch_file_diffs(pr_event.repo_full_name, pr_event.pr_number)
             _set_phase(session, review_run_id, "ingestion", "done")
+            logger.info("%s [0/7] INGESTION done in %.1fs — %d file(s), %d commit(s)",
+                        run_tag, __import__("time").monotonic() - t0, len(file_diffs), len(commits))
 
-            previous_findings = _fetch_previous_findings(
+            previous_findings, previous_fingerprints = _fetch_previous_findings(
                 session, pr_event.repo_full_name, pr_event.pr_number, review_run_id
             )
 
@@ -117,13 +137,17 @@ async def execute_review_run(review_run_id: str, pr_event: PREvent) -> None:
                     github_client,
                     on_phase=on_phase,
                     previous_findings=previous_findings,
+                    previous_fingerprints=previous_fingerprints,
                 )
 
             run.risk_level = result.diff_analysis.risk_level
+            run.change_summary = result.change_summary
+            run.suggested_pr_description = result.suggested_pr_description
             run.status = "done"
             session.add(run)
 
             for sf in result.scored_findings:
+                fp = _finding_fingerprint(sf.finding.file, sf.finding.dimension, sf.finding.finding)
                 session.add(
                     Finding(
                         review_run_id=review_run_id,
@@ -136,11 +160,12 @@ async def execute_review_run(review_run_id: str, pr_event: PREvent) -> None:
                         confidence=sf.critic.confidence,
                         published=sf.publish or sf.downgrade_to_summary,
                         discarded=not sf.publish and not sf.downgrade_to_summary,
+                        fingerprint=fp,
                     )
                 )
             session.commit()
         except Exception as exc:
-            logger.exception("review pipeline failed for run %s", review_run_id)
+            logger.exception("%s pipeline FAILED — %s", run_tag, exc)
             run.status = "failed"
             run.error = str(exc)
             session.add(run)

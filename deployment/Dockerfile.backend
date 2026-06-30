@@ -1,0 +1,19 @@
+FROM python:3.11-slim
+
+# git is required at runtime (the blast-radius engine shallow-clones the PR
+# head via `git fetch`/`git checkout` - see backend/app/pipeline/blast_radius/workspace.py).
+# build-essential is a fallback in case a tree-sitter wheel isn't available
+# for this platform and pip has to build from source.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app/backend
+COPY backend/pyproject.toml ./
+COPY backend/app ./app
+COPY prompts/ /app/prompts/
+
+RUN pip install --no-cache-dir -e ".[dev]"
+
+EXPOSE 8001
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8001"]

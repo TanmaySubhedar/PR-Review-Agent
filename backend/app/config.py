@@ -15,6 +15,10 @@ class Settings(BaseSettings):
     azure_openai_model: str = "gpt-4o"
     azure_openai_api_version: str = "2025-01-01-preview"
 
+    # Non-Azure providers (leave blank if using Azure above)
+    openai_api_key: str = ""
+    openai_base_url: str = ""
+
     github_token: str = ""
     github_webhook_secret: str = ""
 
@@ -24,6 +28,7 @@ class Settings(BaseSettings):
     reader_concurrency: int = 5
     blast_radius_max_depth: int = 3
     blast_radius_max_files: int = 20
+    repo_onboarding_max_files: int = 2000
 
     def __repr__(self) -> str:
         return "Settings(***redacted***)"

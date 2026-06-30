@@ -16,3 +16,7 @@ class Finding(SQLModel, table=True):
     confidence: float
     published: bool = False
     discarded: bool = False
+    # Stable 16-char sha256 prefix over (file, dimension, finding_text).
+    # Excludes line number so identity survives line drift from unrelated hunks.
+    # NULL on rows written before this field was added.
+    fingerprint: Optional[str] = None

@@ -28,3 +28,7 @@ Thumbs.db
 
 # Scratch workspaces created by the blast-radius cloner
 backend/.workspaces/
+
+tasks/
+pr-agent/
+pr-review-agent/

@@ -9,6 +9,7 @@ class CriticScore(BaseModel):
     respects_repo_context: bool
     actionable: bool
     confidence: float
+    refinement_suggestion: str | None = None
 
 
 class ScoredFinding(BaseModel):
